@@ -1,0 +1,51 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.tf"
+      - "**.tfvars"
+      - ".github/workflows/terraform-*.yml"
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC auth to Azure
+
+jobs:
+  apply:
+    name: Apply to Sandbox
+    runs-on: ubuntu-latest
+    environment: sandbox  # approval gate is configured on this GitHub environment
+    env:
+      TF_WORKING_DIR: sandbox
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ vars.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="key=sandbox/terraform.tfstate"
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve
+        working-directory: ${{ env.TF_WORKING_DIR }}

@@ -1,0 +1,10 @@
+# Copy this file to backend.hcl and fill in your values.
+# backend.hcl is gitignored — never commit it.
+#
+# Usage:
+#   terraform init -backend-config=backend.hcl
+
+resource_group_name  = "rsg-dev-<your-solution>-terraform-state"
+storage_account_name = "<your-state-storage-account>"
+container_name       = "tfstate"
+key                  = "sandbox/terraform.tfstate"
