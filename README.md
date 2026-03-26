@@ -142,14 +142,19 @@ cp sandbox/backend.hcl.example sandbox/backend.hcl
 
 `sandbox/main.tf` references `modules/storage-account/` — this module must exist before `terraform init` will succeed. Use the HashiCorp plugin via Claude Code to generate it:
 
-1. Open Claude Code in the repo root:
+1. Open Claude Code in the repo root (or use the VS code extension)
    ```bash
    claude
    ```
 
-2. Generate the module:
+2. Generate the module: Ask Claude:
+
+   > *"use the tf-architect to do generate eusable Azure Storage Account module"*
+
+   Or in the Claude Code CLI:
    ```
    /terraform-module-generation reusable Azure Storage Account module
+
    ```
    This scaffolds `modules/storage-account/` with `main.tf`, `variables.tf`, `outputs.tf`, and `versions.tf`.
 
@@ -157,9 +162,15 @@ cp sandbox/backend.hcl.example sandbox/backend.hcl
    - `>= 1.0.0` → safe to use directly
    - `< 1.0.0` → ask the plugin to generate a custom module instead (see [AVM version rule](#avm-module-version-rule))
 
-4. Apply team standards — naming pattern, required tags, no secrets.
+4. Apply team standards to the generated module. Ask Claude:
 
-5. Review before committing:
+   > *"Apply Nimtech team standards to this module — add a `locals.tf` with `common_tags` (`environment`, `solution`, `owner`, `cost_center`), use the `st{env}{solution}` naming pattern via locals, and add `prevent_destroy = true` on the storage account."*
+
+5. Review before committing. Ask Claude:
+
+   > *"Review this module against team standards using the tf-code-reviewer skill."*
+
+   Or in the Claude Code CLI:
    ```
    /tf-code-reviewer
    ```
@@ -227,7 +238,7 @@ All code is reviewed against the rules in `standards/templates/`:
 ### Naming convention
 
 ```
-{type}-{env}-{costCenter}-{solution}
+{type}-{env}{solution}
 ```
 
 Example: `rg-dev-platform-iac-training`
@@ -247,7 +258,7 @@ Resource type prefixes follow the [Azure Cloud Adoption Framework abbreviations 
 | Container registry | `cr` |
 | Log Analytics workspace | `log` |
 
-Naming compliance is checked during AI code review (`/tf-code-reviewer`). It is **not** checked by CI — the reviewer MUST flag any deviation from the CAF standard or the `{type}-{env}-{costCenter}-{solution}` pattern as a **[BLOCKER]**.
+Naming compliance is checked during AI code review (`/tf-code-reviewer`). It is **not** checked by CI — the reviewer MUST flag any deviation from the CAF standard or the `{type}-{env}{solution}` pattern as a **[BLOCKER]**.
 
 ### Required tags on every resource
 
@@ -405,6 +416,10 @@ Plugin-generated code is a starting point. Before opening a PR:
 - [ ] Add `backend "azurerm" {}` to root module `terraform.tf`
 - [ ] Add `prevent_destroy = true` on stateful resources
 
+Ask Claude to apply these for you:
+
+> *"Apply Nimtech team standards to this module — add a `locals.tf` with `common_tags`, parameterise resource names using the `{type}-{env}-{solution}` pattern via locals, wire `tags = local.common_tags` onto every resource, and add `prevent_destroy = true` on stateful resources."*
+
 ### 3 — Check AVM module versions
 
 Before accepting generated code that references an `Azure/avm-*` module:
@@ -429,13 +444,20 @@ tfsec .
 
 ### 5 — Review
 
-Ask Claude to review before opening a PR:
+Ask Claude to review before opening a PR.
 
-> *"Review this Terraform module"*
+**VS Code Claude extension** — select the file or open the chat and ask:
 
-Or invoke the skill directly: `/tf-code-reviewer`
+> *"Review this Terraform module against team standards using the tf-code-reviewer skill."*
+> *"Review my changes in sandbox/main.tf against team standards."*
 
-Findings are reported as `[BLOCKER]` / `[MAJOR]` / `[MINOR]` / `[NIT]` with **Where / Why / Fix** for each.
+**Claude Code CLI:**
+
+```
+/tf-code-reviewer
+```
+
+Findings are reported as `[BLOCKER]` / `[MAJOR]` / `[MINOR]` / `[NIT]` with **Where / Why / Fix** for each. Fix all `[BLOCKER]` and `[MAJOR]` findings before opening a PR.
 
 ### 6 — Open a PR
 
@@ -505,6 +527,13 @@ To watch a deploy: **Actions → Terraform Apply → the running workflow**.
 ### tf-code-reviewer
 
 Reviews `.tf` files and diffs against HashiCorp style and team standards.
+
+**VS Code Claude extension** — select the file or open the chat and ask:
+
+> *"Review this Terraform module against team standards using the tf-code-reviewer skill."*
+> *"Review my changes in sandbox/main.tf against team standards."*
+
+**Claude Code CLI:**
 
 ```
 /tf-code-reviewer

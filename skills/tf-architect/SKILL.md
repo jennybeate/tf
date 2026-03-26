@@ -67,7 +67,7 @@ Invoke them with a `/` slash command inside a `claude` session, or describe your
 
 ## AVM Module Version Check
 
-> ⚠️ **Always verify AVM module versions before accepting generated code.**
+> ⚠️ **When reviewing AVM modules, verify the AVM module versions before accepting generated code.**
 
 When any module block references an AVM source (`Azure/avm-*`), check the `version` field and apply these rules:
 
