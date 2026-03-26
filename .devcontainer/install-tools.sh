@@ -22,4 +22,9 @@ echo "tfsec ${TFSEC_VERSION} installed"
 echo "Initialising tflint plugins..."
 tflint --init
 
+# Install Bicep CLI
+echo "Installing Bicep..."
+az bicep install
+echo "Bicep $(az bicep version --query 'bicepVersion' -o tsv) installed"
+
 echo "All tools installed successfully."

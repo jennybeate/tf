@@ -22,6 +22,7 @@
     "vscode": {
       "extensions": [
         "hashicorp.terraform",
+        "ms-azuretools.vscode-bicep",
         "github.vscode-github-actions",
         "ms-azuretools.vscode-azureresourcegroups",
         "github.copilot"
