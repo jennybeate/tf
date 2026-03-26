@@ -39,26 +39,6 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 
 ---
 
-## Step 0 — Bootstrap: create the Terraform state backend
-
-> **Platform admin step — run once per subscription before anyone can use this repo.**
-
-Terraform stores its state in an Azure Storage Account. This must exist before `terraform init` can run — Terraform cannot create its own state backend (chicken-and-egg). It is provisioned via Bicep, not Terraform.
-
-The Bicep file is at [`bootstrap/main.bicep`](bootstrap/main.bicep). It creates the resource group and storage account in one deployment.
-
-> ⚠️ **AVM module note:** The Bicep AVM storage account module (`avm/res/storage/storage-account`) is at version `0.32.0` — no `>= 1.0.0` release exists yet. This is acceptable here because the bootstrap file runs once and rarely changes. Do not use this module in managed Terraform infrastructure.
-
-```bash
-az deployment sub create \
-  --location uksouth \
-  --template-file bootstrap/main.bicep
-```
-
-The deployment is idempotent — safe to re-run. The values match `sandbox/backend.hcl.example`.
-
----
-
 ## Step 1 — Prerequisites
 
 ### Option A — Dev container (recommended)
@@ -88,7 +68,29 @@ After installing tflint, run `tflint --init` in the repo root to install the azu
 
 ---
 
-## Step 2 — One-time GitHub setup
+## Step 2 — Bootstrap: create the Terraform state backend
+
+> **Platform admin step — run once per subscription before anyone can use this repo.**
+
+Terraform stores its state in an Azure Storage Account. This must exist before `terraform init` can run — Terraform cannot create its own state backend (chicken-and-egg). It is provisioned via Bicep, not Terraform.
+
+The Bicep CLI is installed automatically by the dev container (`az bicep install` in `install-tools.sh`). If you are using the manual install path, run `az bicep install` first.
+
+The Bicep file is at [`bootstrap/main.bicep`](bootstrap/main.bicep). It creates the resource group and storage account in one deployment.
+
+> ⚠️ **AVM module note:** The Bicep AVM storage account module (`avm/res/storage/storage-account`) is at version `0.32.0` — no `>= 1.0.0` release exists yet. This is considered acceptable in this scenario and the AVM team states in the docs that modules do not need to be 1.0.0 to be used in production.
+
+```bash
+az deployment sub create \
+  --location uksouth \
+  --template-file bootstrap/main.bicep
+```
+
+The deployment is idempotent — safe to re-run. The values match `sandbox/backend.hcl.example`.
+
+---
+
+## Step 3 — One-time GitHub setup
 
 Before the pipeline works, a platform admin needs to set this up once per repo.
 
@@ -122,7 +124,7 @@ Before the pipeline works, a platform admin needs to set this up once per repo.
 
 ---
 
-## Step 3 — Local setup
+## Step 4 — Local setup
 
 ```bash
 # Authenticate to Azure
@@ -174,7 +176,7 @@ terraform plan
 
 ---
 
-## Step 4 — Make a change and open a PR
+## Step 5 — Make a change and open a PR
 
 This is where learning happens. A typical exercise:
 
