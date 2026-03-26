@@ -82,7 +82,7 @@ The Bicep file is at [`bootstrap/main.bicep`](bootstrap/main.bicep). It creates 
 
 ```bash
 az deployment sub create \
-  --location uksouth \
+  --location norwayeast \
   --template-file bootstrap/main.bicep
 ```
 
