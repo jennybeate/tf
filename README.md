@@ -39,6 +39,26 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 
 ---
 
+## Step 0 — Bootstrap: create the Terraform state backend
+
+> **Platform admin step — run once per subscription before anyone can use this repo.**
+
+Terraform stores its state in an Azure Storage Account. This must exist before `terraform init` can run — Terraform cannot create its own state backend (chicken-and-egg). It is provisioned via Bicep, not Terraform.
+
+The Bicep file is at [`bootstrap/main.bicep`](bootstrap/main.bicep). It creates the resource group and storage account in one deployment.
+
+> ⚠️ **AVM module note:** The Bicep AVM storage account module (`avm/res/storage/storage-account`) is at version `0.32.0` — no `>= 1.0.0` release exists yet. This is acceptable here because the bootstrap file runs once and rarely changes. Do not use this module in managed Terraform infrastructure.
+
+```bash
+az deployment sub create \
+  --location uksouth \
+  --template-file bootstrap/main.bicep
+```
+
+The deployment is idempotent — safe to re-run. The values match `sandbox/backend.hcl.example`.
+
+---
+
 ## Step 1 — Prerequisites
 
 ### Option A — Dev container (recommended)
@@ -112,14 +132,45 @@ az account set --subscription "<your-sandbox-subscription-id>"
 # Copy and fill in the backend config
 cp sandbox/backend.hcl.example sandbox/backend.hcl
 # Edit backend.hcl — add your state storage account details
+```
 
-# Initialise and plan
+`backend.hcl` is gitignored — never commit it.
+
+### Generate the storage account module
+
+`sandbox/main.tf` references `modules/storage-account/` — this module must exist before `terraform init` will succeed. Use the HashiCorp plugin via Claude Code to generate it:
+
+1. Open Claude Code in the repo root:
+   ```bash
+   claude
+   ```
+
+2. Generate the module:
+   ```
+   /terraform-module-generation reusable Azure Storage Account module
+   ```
+   This scaffolds `modules/storage-account/` with `main.tf`, `variables.tf`, `outputs.tf`, and `versions.tf`.
+
+3. Check the AVM version — if the generated code references an `Azure/avm-res-storage-storageaccount` module, verify the version before accepting it:
+   - `>= 1.0.0` → safe to use directly
+   - `< 1.0.0` → ask the plugin to generate a custom module instead (see [AVM version rule](#avm-module-version-rule))
+
+4. Apply team standards — naming pattern, required tags, no secrets.
+
+5. Review before committing:
+   ```
+   /tf-code-reviewer
+   ```
+
+See [`skills/tf-architect/SKILL.md`](skills/tf-architect/SKILL.md) for the full plugin guide.
+
+### Initialise and plan
+
+```bash
 cd sandbox
 terraform init -backend-config=backend.hcl
 terraform plan
 ```
-
-`backend.hcl` is gitignored — never commit it.
 
 ---
 
