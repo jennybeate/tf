@@ -14,16 +14,16 @@ param environment string = 'sbx'
 param solution string = 'platform'
 
 @maxLength(24)
-@description('Required. Name of the Storage Account. Must be lower-case. Defaults to stsbxplatformtfstate')
-param storageAccountName string = 'st${environment}${solution}tfstate'
+@description('Required. Name of the Storage Account. Must be lower-case. Defaults to stsbxplatform')
+param storageAccountName string = 'st${environment}${solution}'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: 'rg-${environment}-${solution}-terraform-state'
+  name: 'rg-${environment}-${solution}'
   location: location
 }
 
 module storageAccount 'br/public:avm/res/storage/storage-account:0.32.0' = {
-  name: 'tfstate-storage'
+  name: '${environment}-${solution}-storage'
   scope: rg
   params: {
     name: storageAccountName
