@@ -80,10 +80,19 @@ The Bicep file is at [`bootstrap/main.bicep`](bootstrap/main.bicep). It creates 
 
 > ⚠️ **AVM module note:** The Bicep AVM storage account module (`avm/res/storage/storage-account`) is at version `0.32.0` — no `>= 1.0.0` release exists yet. This is considered acceptable in this scenario and the AVM team states in the docs that modules do not need to be 1.0.0 to be used in production.
 
+The deployment requires the **Object ID** of the App Registration you created in Step 3. This is used to grant `Storage Blob Data Owner` on the state container so the pipeline can read and write Terraform state using Azure AD auth (no storage account keys needed).
+
+To find the Object ID:
+```bash
+az ad sp show --id <AZURE_CLIENT_ID> --query id -o tsv
+```
+
+Then run the deployment:
 ```bash
 az deployment sub create \
   --location norwayeast \
-  --template-file bootstrap/main.bicep
+  --template-file bootstrap/main.bicep \
+  --parameters deploymentIdentityObjectId="<object-id-from-above>"
 ```
 
 The deployment is idempotent — safe to re-run. The values match `sandbox/backend.hcl.example`.

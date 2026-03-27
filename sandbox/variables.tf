@@ -17,6 +17,12 @@ variable "location" {
   nullable    = false
 }
 
+variable "cost_center" {
+  type        = string
+  description = "Cost center identifier for billing and tagging."
+  nullable    = false
+}
+
 variable "owner" {
   type        = string
   description = "Owner of sandbox resources, used for tagging."

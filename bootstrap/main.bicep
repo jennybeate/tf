@@ -14,20 +14,35 @@ param environment string = 'sbx'
 param solution string = 'platform'
 
 @maxLength(24)
-@description('Required. Name of the Storage Account. Must be lower-case. Defaults to stsbxplatform')
-param storageAccountName string = 'st${environment}${solution}'
+@description('Required. Name of the Storage Account. Must be lower-case. Defaults to stsbxplatformtfstate')
+param storageAccountName string = 'st${environment}${solution}tfstate'
+
+@secure()
+param deploymentIdentityObjectId string
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: 'rg-${environment}-${solution}'
+  name: 'rg-${environment}-${solution}-terraform-state'
   location: location
 }
 
 module storageAccount 'br/public:avm/res/storage/storage-account:0.32.0' = {
-  name: '${environment}-${solution}-storage'
+  name: 'tfstate-storage'
   scope: rg
   params: {
     name: storageAccountName
     location: location
     skuName: skuName
+    blobServices: {
+      containers: [{ name: 'tfstate', publicAccess: 'None' }]
+    }
+    roleAssignments: [
+            {
+              principalId: deploymentIdentityObjectId
+              principalType: 'ServicePrincipal'
+              roleDefinitionIdOrName: 'BlobDataOwner'
+            }
+          ]
+      isLocalUserEnabled: false
+      publicNetworkAccess: 'Enabled'
   }
 }
