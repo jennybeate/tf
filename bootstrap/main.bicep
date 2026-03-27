@@ -18,7 +18,7 @@ param solution string = 'platform'
 param storageAccountName string = 'st${environment}${solution}tfstate'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: 'rsg-${environment}-${solution}-terraform-state'
+  name: 'rg-${environment}-${solution}-terraform-state'
   location: location
 }
 
@@ -29,8 +29,5 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.32.0' = {
     name: storageAccountName
     location: location
     skuName: skuName
-    blobServices: {
-      containers: [{ name: 'tfstate', publicAccess: 'None' }]
-    }
   }
 }
