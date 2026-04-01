@@ -48,7 +48,7 @@ Generate a complete workflow with these jobs:
 | `plan` | validate | init (OIDC + inline backend config), plan → `plan.txt`, read output, find+create-or-update PR comment, upload artifact |
 
 **Backend config** — always inline via `-backend-config` flags (not a committed file):
-- Secrets: `TF_BACKEND_RESOURCE_GROUP`, `TF_BACKEND_STORAGE_ACCOUNT`
+- Variables (`vars.*`): `TF_BACKEND_RESOURCE_GROUP`, `TF_BACKEND_STORAGE_ACCOUNT` — these are not secrets; using `secrets.*` for a variable silently returns empty
 - Hardcoded: `container_name=tfstate`, `use_azuread_auth=true`
 - Key: `<module-folder-name>/terraform.tfstate`
 

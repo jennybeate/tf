@@ -67,7 +67,7 @@ Configure federated credential subjects on the managed identity (one-time):
 
 - Store all credentials as GitHub repo or environment secrets — never hardcode values in workflow files.
 - Pass secrets only to jobs that need them (`env:` at job or step level, not at workflow level).
-- Backend config values (resource group name, storage account name) are not secrets — use repo variables or inline them from secrets.
+- Backend config values (resource group name, storage account name) are not secrets — store as GitHub Actions **variables** (`vars.NAME`) and reference via `${{ vars.TF_BACKEND_RESOURCE_GROUP }}` / `${{ vars.TF_BACKEND_STORAGE_ACCOUNT }}`. Using `secrets.NAME` for a variable silently returns an empty string.
 
 ## Terraform backend config
 
