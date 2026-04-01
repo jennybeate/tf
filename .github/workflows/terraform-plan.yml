@@ -1,118 +1,208 @@
-name: Terraform Plan
+# Pre-flight validation workflow: runs on every PR that touches modules/.
+#
+# Jobs:
+#   validate  — static checks (fmt, tflint, validate, tfsec) — no Azure credentials needed
+#   plan      — terraform plan via OIDC, posts plan summary to PR       (needs: validate)
+#
+# Prerequisites (one-time setup):
+#   - AZURE_CLIENT_ID            repo secret — managed identity / service principal client ID
+#   - AZURE_TENANT_ID            repo secret — Azure AD tenant ID
+#   - AZURE_SUBSCRIPTION_ID      repo secret — Azure subscription ID
+#   - TF_BACKEND_RESOURCE_GROUP  repo secret — state storage resource group name
+#   - TF_BACKEND_STORAGE_ACCOUNT repo secret — state storage account name
+#
+# Security note: pin all 'uses:' entries to full commit SHAs in production.
+# See standards/templates/github-actions-best-practices.md for guidance.
+
+name: Terraform Pre-flight Validation
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - "**.tf"
-      - "**.tfvars"
-      - ".github/workflows/terraform-*.yml"
+      - "modules/**"
+      - ".tflint.hcl"
+  workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write       # required for OIDC auth to Azure
-  pull-requests: write  # required to post plan output as a PR comment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Deny all permissions at workflow level; each job grants only what it needs.
+permissions: {}
 
 jobs:
-  plan:
-    name: Validate & Plan
+  # ---------------------------------------------------------------------------
+  # Job 1: Static validation — no cloud credentials required
+  # ---------------------------------------------------------------------------
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
-    environment: sandbox
-    env:
-      TF_WORKING_DIR: sandbox
-      ARM_USE_OIDC: "true"
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: modules/storage-account
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.9"
+          terraform_version: "~> 1.6"
+          terraform_wrapper: false
 
       - name: Setup tflint
         uses: terraform-linters/setup-tflint@v4
 
-      - name: Terraform format check
-        run: terraform fmt -recursive -check
-        working-directory: ${{ env.TF_WORKING_DIR }}
+      - name: Configure Terraform plugin cache dir
+        run: mkdir -p ~/.terraform.d/plugin-cache
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: ${{ runner.os }}-terraform-
+
+      - name: Restore tflint plugin cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.tflint.d/plugins
+          key: tflint-${{ runner.os }}-${{ hashFiles('.tflint.hcl') }}
+
+      - name: Init tflint plugins
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Format check
+        run: terraform fmt -check -recursive
+
+      - name: Lint
+        run: tflint --recursive
+
+      - name: Init (no backend)
+        run: terraform init -backend=false
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Security scan (tfsec)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: modules/storage-account
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Terraform plan — requires Azure OIDC
+  # ---------------------------------------------------------------------------
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: modules/storage-account
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.6"
+          terraform_wrapper: false
+
+      - name: Configure Terraform plugin cache dir
+        run: mkdir -p ~/.terraform.d/plugin-cache
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: ${{ runner.os }}-terraform-
 
       - name: Terraform init
         run: |
           terraform init \
-            -backend-config="resource_group_name=${{ vars.TF_STATE_RESOURCE_GROUP }}" \
-            -backend-config="storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="resource_group_name=${{ secrets.TF_BACKEND_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
             -backend-config="container_name=tfstate" \
-            -backend-config="key=sandbox/terraform.tfstate" \
+            -backend-config="key=storage-account/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
-        working-directory: ${{ env.TF_WORKING_DIR }}
-
-      - name: tflint
-        run: |
-          tflint --init
-          tflint --recursive
-        working-directory: ${{ env.TF_WORKING_DIR }}
-
-      - name: Install tfsec
-        run: |
-          curl -Lo tfsec https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64
-          chmod +x tfsec
-          sudo mv tfsec /usr/local/bin/
-
-      - name: tfsec
-        run: tfsec ${{ env.TF_WORKING_DIR }}
-        working-directory: ${{ github.workspace }}
-
-      - name: Terraform validate
-        run: terraform validate
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: "true"
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
       - name: Terraform plan
-        id: plan
-        run: terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        continue-on-error: true
+        run: |
+          terraform plan \
+            -var-file environments/sbx.tfvars \
+            -lock-timeout=5m \
+            -out=tfplan \
+            -no-color 2>&1 | tee plan.txt
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: "true"
+
+      - name: Read plan output
+        id: plan-output
+        run: |
+          {
+            echo 'CONTENT<<PLAN_EOF'
+            cat plan.txt
+            echo 'PLAN_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing plan comment
+        if: github.event_name == 'pull_request'
+        id: find-plan-comment
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "<!-- tf-plan-comment -->"
 
       - name: Post plan to PR
-        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
         with:
-          script: |
-            const fs = require('fs');
-            const plan = fs.readFileSync('${{ env.TF_WORKING_DIR }}/plan_output.txt', 'utf8');
-            const truncated = plan.length > 60000 ? plan.slice(0, 60000) + '\n\n...[truncated]' : plan;
-            const status = '${{ steps.plan.outcome }}' === 'success' ? '✅' : '❌';
+          comment-id: ${{ steps.find-plan-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: |
+            <!-- tf-plan-comment -->
+            ## Terraform Plan — `modules/storage-account`
 
-            const body = `### ${status} Terraform Plan — \`${{ env.TF_WORKING_DIR }}\`
+            <details>
+            <summary>Show plan output</summary>
 
-            <details><summary>Show plan</summary>
-
-            \`\`\`terraform
-            ${truncated}
-            \`\`\`
+            ```hcl
+            ${{ steps.plan-output.outputs.CONTENT }}
+            ```
 
             </details>
 
-            *Triggered by @${{ github.actor }} on \`${{ github.event_name }}\`*`;
+            > Run [`${{ github.run_id }}`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · Commit `${{ github.sha }}`
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
-      - name: Fail if plan failed
-        if: steps.plan.outcome == 'failure'
-        run: exit 1
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.run_id }}
+          path: modules/storage-account/tfplan
+          retention-days: 7

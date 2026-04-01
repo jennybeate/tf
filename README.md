@@ -8,32 +8,37 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 
 ```
 .
-├── .devcontainer/
-│   ├── devcontainer.json          # VS Code dev container definition
-│   └── install-tools.sh           # Installs tflint and tfsec on container build
 ├── .github/
 │   ├── workflows/
 │   │   ├── terraform-plan.yml     # Runs on every PR — fmt, lint, tfsec, plan
-│   │   └── terraform-apply.yml    # Runs on merge to main — applies to sandbox
+│   │   └── terraform-apply.yml    # Runs on merge to main — applies deployments
 │   └── PULL_REQUEST_TEMPLATE.md   # PR checklist
 ├── .tflint.hcl                    # tflint config — azurerm ruleset
-├── sandbox/                       # Root Terraform config — deploy this to get started
-│   ├── main.tf                    # Resources to deploy (resource group + storage account)
-│   ├── terraform.tf               # Provider, Terraform version, and azurerm backend
-│   ├── variables.tf               # Input variables
-│   ├── outputs.tf                 # Output values
-│   └── backend.hcl.example        # Copy this → backend.hcl and fill in your values
-├── modules/                       # Reusable modules — add your own here
-├── skills/
-│   ├── tf-architect/              # AI skill: code generation, AVM version checks
-│   └── tf-code-reviewer/          # AI skill: review .tf files against team standards
+├── bootstrap/
+│   └── main.bicep                 # Platform admin: create Terraform state backend (one-time)
+├── backend.hcl.example            # Copy to backend.hcl — points to bootstrapped state storage
+├── modules/                       # Reusable Terraform modules
+│   └── storage-account/
+│       ├── main.tf, variables.tf, outputs.tf, etc.
+│       ├── environments/
+│       │   └── sbx.tfvars         # Environment-specific variables
+│       └── tests/
+│           └── storage_account.tftest.hcl
+├── skills/                        # AI-assisted development
+│   ├── tf-architect/              # Skill: scaffold Terraform modules
+│   ├── tf-code-reviewer/          # Skill: review .tf files against standards
+│   ├── repo-naming-checker/       # Skill: validate resource naming
+│   └── code-reviewer/             # Skill: review PowerShell/Bicep/pipelines
 ├── standards/
 │   └── templates/
-│       ├── terraform-review.rules.md  # Terraform-specific review rules
-│       ├── code-review.rules.md       # Severity definitions
-│       └── code-review.output.md      # Review output format
+│       ├── terraform-authoring-guide.md     # Module authoring standards
+│       ├── terraform-review.rules.md        # Code review rules
+│       ├── terraform-standards.md           # Team conventions
+│       ├── naming-conventions.md            # Azure naming rules
+│       ├── code-review.rules.md             # Severity definitions
+│       └── code-review.output.md            # Review output format
 ├── .gitignore
-├── CLAUDE.md                      # Context loaded automatically by Claude Code
+├── CLAUDE.md                      # Context for Claude Code — loaded automatically
 └── README.md
 ```
 
@@ -41,17 +46,7 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 
 ## Step 1 — Prerequisites
 
-### Option A — Dev container (recommended)
-
-The repo includes a dev container that installs everything automatically. All you need is:
-
-- [VS Code](https://code.visualstudio.com/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-
-Open the repo in VS Code, click **Reopen in Container** when prompted, and wait for the container to build. Terraform, Azure CLI, tflint, and tfsec are all installed automatically.
-
-### Option B — Manual install
+Install the following tools on your machine:
 
 | Tool | Version | Install |
 |------|---------|---------|
@@ -70,24 +65,24 @@ After installing tflint, run `tflint --init` in the repo root to install the azu
 
 ## Step 2 — Bootstrap: create the Terraform state backend
 
-> **Platform admin step — run once per subscription before anyone can use this repo.**
+> **Platform admin step — run once per subscription before deploying any infrastructure.**
 
-Terraform stores its state in an Azure Storage Account. This must exist before `terraform init` can run — Terraform cannot create its own state backend (chicken-and-egg). It is provisioned via Bicep, not Terraform.
+Terraform stores state in an Azure Storage Account. This storage account must be created before `terraform init` can reference it. Use the Bicep bootstrap template to provision it.
 
-The Bicep CLI is installed automatically by the dev container (`az bicep install` in `install-tools.sh`). If you are using the manual install path, run `az bicep install` first.
+### Prerequisites
 
-The Bicep file is at [`bootstrap/main.bicep`](bootstrap/main.bicep). It creates the resource group and storage account in one deployment.
+- Azure CLI installed: `az login` and set your subscription
+- Bicep CLI: `az bicep install`
+- An Azure AD App Registration with an Object ID (see Step 3 for federated identity setup)
 
-> ⚠️ **AVM module note:** The Bicep AVM storage account module (`avm/res/storage/storage-account`) is at version `0.32.0` — no `>= 1.0.0` release exists yet. This is considered acceptable in this scenario and the AVM team states in the docs that modules do not need to be 1.0.0 to be used in production.
+### Deploy the state backend
 
-The deployment requires the **Object ID** of the App Registration you created in Step 3. This is used to grant `Storage Blob Data Owner` on the state container so the pipeline can read and write Terraform state using Azure AD auth (no storage account keys needed).
-
-To find the Object ID:
+Get your app registration Object ID:
 ```bash
 az ad sp show --id <AZURE_CLIENT_ID> --query id -o tsv
 ```
 
-Then run the deployment:
+Deploy the bootstrap:
 ```bash
 az deployment sub create \
   --location norwayeast \
@@ -95,7 +90,15 @@ az deployment sub create \
   --parameters deploymentIdentityObjectId="<object-id-from-above>"
 ```
 
-The deployment is idempotent — safe to re-run. The values match `sandbox/backend.hcl.example`.
+This creates:
+- Resource Group: `rg-sbx-platform-terraform-state`
+- Storage Account: `stsbxplatformtfstate`
+- Container: `tfstate`
+- RBAC: `Storage Blob Data Owner` for your app registration
+
+This deployment is **one-time and idempotent** — safe to re-run. The values match `backend.hcl.example`.
+
+> ⚠️ **AVM module note:** Uses Azure Verified Module `avm/res/storage/storage-account:0.32.0`. This version is pre-1.0.0 but approved for production use by the AVM team.
 
 ---
 
@@ -133,39 +136,124 @@ Before the pipeline works, a platform admin needs to set this up once per repo.
 
 ---
 
-## Step 4 — Local setup
+## Step 4 — Configure local backend and deploy modules
+
+Once bootstrap is deployed, configure Terraform to use the remote state backend:
 
 ```bash
-# Authenticate to Azure
-az login
-az account set --subscription "<your-sandbox-subscription-id>"
+# Copy the backend template
+cp backend.hcl.example backend.hcl
 
-# Copy and fill in the backend config
-cp sandbox/backend.hcl.example sandbox/backend.hcl
-# Edit backend.hcl — add your state storage account details
+# Edit backend.hcl if needed
+# (values should match bootstrap deployment: resource group, storage account, container, key)
 ```
 
 `backend.hcl` is gitignored — never commit it.
 
-### Generate the storage account module
+### Validate a module
 
-`sandbox/main.tf` references `modules/storage-account/` — this module must exist before `terraform init` will succeed. Use the HashiCorp plugin via Claude Code to generate it:
+Modules include a `Justfile` with all checks. To validate and test a module:
 
-1. Open Claude Code in the repo root (or use the VS code extension)
+```bash
+cd modules/storage-account
+just        # Runs: fmt → validate → lint → security → test
+```
+
+All checks must pass before code review.
+
+### Deploy a module
+
+To use a module in your infrastructure, create a root-level Terraform config (e.g., `sandbox/main.tf`):
+
+```hcl
+module "storage_account" {
+  source = "../modules/storage-account"
+  
+  cost_center      = "cc-1234"
+  environment      = "sbx"
+  location         = "norwayeast"
+  owner            = "platform-team"
+  replication_type = "LRS"
+  solution         = "my-solution"
+}
+```
+
+Then deploy:
+
+```bash
+cd sandbox
+terraform init -backend-config=../backend.hcl
+terraform plan
+terraform apply
+```
+
+---
+
+## Workflow: Creating and reviewing a new module
+
+1. **Generate** — Use `tf-architect` skill in Claude Code to scaffold a module
+2. **Develop** — Edit module files (main.tf, variables.tf, etc.)
+3. **Test locally** — Run `just` in the module directory to validate all checks
+4. **Review code** — Use `tf-code-reviewer` skill or request peers
+5. **Create PR** — GitHub Actions will run plan and checks automatically
+6. **Deploy** — On merge to main, the apply workflow runs (after approval)
+
+---
+
+## AI Support
+
+This repo includes AI skills that integrate with Claude Code and VS Code Copilot extensions:
+
+| Skill | Use case |
+|-------|----------|
+| `tf-architect` | Scaffold new modules with full structure, tests, and backend config guidance |
+| `tf-code-reviewer` | Review .tf files against standards, naming, and security rules |
+| `repo-naming-checker` | Validate Azure resource names for compliance |
+| `code-reviewer` | Review PowerShell, Bicep, and pipeline code |
+
+**In Claude Code:**
+```
+# Ask Claude to generate a new module
+"use tf-architect to generate an Azure App Service module"
+
+# Ask to review your code
+"use tf-code-reviewer to review the storage-account module"
+```
+
+---
+
+## Next steps
+
+✅ **Module is ready**: Your `storage-account` module passed all checks (`just` succeeded).
+
+🎯 **What to do next**:
+
+1. **Deploy bootstrap** (if not done):
    ```bash
-   claude
+   az deployment sub create -l norwayeast -f bootstrap/main.bicep \
+     --parameters deploymentIdentityObjectId="<your-app-object-id>"
    ```
 
-2. Generate the module: Ask Claude:
-
-   > *"use the tf-architect to do generate eusable Azure Storage Account module"*
-
-   Or in the Claude Code CLI:
+2. **Configure backend**:
+   ```bash
+   cp backend.hcl.example backend.hcl
+   # (Edit if needed — values should match bootstrap output)
    ```
-   /terraform-module-generation reusable Azure Storage Account module
 
-   ```
-   This scaffolds `modules/storage-account/` with `main.tf`, `variables.tf`, `outputs.tf`, and `versions.tf`.
+3. **Create a root deployment** (sandbox) to use the module:
+   - Create `sandbox/main.tf` that calls the storage-account module
+   - Create `sandbox/terraform.tf` with provider and version declarations
+   - Run `terraform init -backend-config=../backend.hcl` and `terraform plan`
+
+4. **Code review** (optional): Use `tf-code-reviewer` skill to review against standards before pushing
+
+5. **Push to PR** and merge — GitHub Actions will handle plan/apply automatically
+   | `providers.tf` | Provider configurations |
+   | `main.tf` | Primary resources and data sources |
+   | `variables.tf` | Input variable declarations (alphabetical) |
+   | `outputs.tf` | Output value declarations (alphabetical) |
+   | `locals.tf` | Local value declarations |
+      
 
 3. Check the AVM version — if the generated code references an `Azure/avm-res-storage-storageaccount` module, verify the version before accepting it:
    - `>= 1.0.0` → safe to use directly
@@ -196,10 +284,17 @@ terraform plan
 
 ---
 
-## Step 5 — Make a change and open a PR
+## Step 5 — Hands on terraform - Make a change and open a PR
 
-This is where learning happens. A typical exercise:
+Keep in mind when generating Terraform code:
 
+1. Start with provider configuration and version constraints
+2. Create data sources before dependent resources
+3. Build resources in dependency order
+4. Add outputs for key resource attributes
+5. Use variables for all configurable values
+
+**Excercise:**
 1. **Add a resource** to `sandbox/main.tf` — e.g. a Key Vault, a managed identity, a VNet.
 2. **Validate locally:**
    ```bash
@@ -602,16 +697,9 @@ This repo is intentionally simplified for sandbox learning. The following change
 | 2 | `.github/workflows/terraform-plan.yml` | `terraform plan` output is posted to PR comments unsanitised — plan output can contain sensitive values from state (connection strings, keys, resource IDs) | Filter or redact sensitive lines before posting, or replace the script with a dedicated tool such as [tfcmt](https://github.com/suzuki-shunsuke/tfcmt) which supports masking |
 | 3 | `.github/workflows/terraform-apply.yml` | `terraform apply -auto-approve` does not use a saved plan file — if the environment approval gate is misconfigured the apply runs without a reviewed plan | Replace with a two-step approach: save the plan in the plan workflow (`-out=tfplan`), upload it as an artifact, download and apply it in the apply workflow (`terraform apply tfplan`) |
 
-### Devcontainer
-
-| # | File | Issue | What to do |
-|---|------|-------|------------|
-| 4 | `.devcontainer/install-tools.sh` | `tflint` and `tfsec` versions are resolved at build time from the GitHub API and installed without checksum verification | Pin to specific versions and verify checksums, or use a package manager (e.g. `brew`, `apt`) with a locked version |
-| 5 | `.devcontainer/devcontainer.json` | The `.claude` directory is mounted from the host into the container — this exposes host credentials and allows the container to write back to the host filesystem | Remove the mount or make it read-only; document any API keys as environment variables passed via `devcontainer.env` instead |
-
 ### Terraform code
 
 | # | File | Issue | What to do |
 |---|------|-------|------------|
-| 6 | `sandbox/outputs.tf` | Outputs are not marked `sensitive = true` — if future outputs include keys or connection strings they will appear in plain text in logs and plan comments | Add `sensitive = true` to any output that may carry a secret value |
-| 7 | `sandbox/variables.tf` | The `owner` variable has no format validation | Add a `validation` block enforcing an email pattern |
+| 4 | `sandbox/outputs.tf` | Outputs are not marked `sensitive = true` — if future outputs include keys or connection strings they will appear in plain text in logs and plan comments | Add `sensitive = true` to any output that may carry a secret value |
+| 5 | `sandbox/variables.tf` | The `owner` variable has no format validation | Add a `validation` block enforcing an email pattern |

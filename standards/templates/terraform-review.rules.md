@@ -43,18 +43,7 @@ terraform plan -out=tfplan
 
 ## File organisation
 
-Every module and root configuration MUST use this file layout:
-
-| File | Purpose |
-|---|---|
-| `terraform.tf` | `terraform {}` block — required version and `required_providers` only |
-| `providers.tf` | `provider {}` configuration blocks (root modules only) |
-| `main.tf` | Primary resources and module calls |
-| `variables.tf` | Input variable declarations (required first, then optional — each group alphabetical) |
-| `outputs.tf` | Output value declarations (alphabetical) |
-| `locals.tf` | Local value declarations (alphabetical within each `locals {}` block) |
-
-For large configurations, split resources into logical files (`network.tf`, `identity.tf`, `aks.tf`). `main.tf` should remain the entry point.
+> See [terraform-standards.md](terraform-standards.md) — Module structure.
 
 ---
 
@@ -152,26 +141,19 @@ resource "azurerm_resource_group" "main" {}
 resource "azurerm_storage_account" "app_data" {}
 ```
 
-### Azure resource names (team standard)
+### Azure resource names
 
-Applies to: the `name` argument — the actual name that appears in Azure. The HashiCorp plugin has no opinion on this; it is governed entirely by team standards.
+> See [naming-conventions.md](naming-conventions.md) — Azure Resource Names.
 
-- MUST follow the pattern `{type}-{env}-{solution}`.
-- MUST be parameterised via locals — never hardcoded strings.
-- Some resource types have character limits that prevent hyphens or full patterns — use the closest compliant variant (e.g. storage accounts: `st{env}{solution}`).
-
-```hcl
-locals {
-  resource_group_name  = "rg-${var.environment}-${var.solution}"
-  storage_account_name = "st${var.environment}${var.solution}"
-}
-```
+Names MUST be parameterised via locals — never hardcoded strings in a resource block.
 
 ---
 
 ## Variables
 
-All variables MUST have `type` and `description`.
+> See [terraform-standards.md](terraform-standards.md) — Variable quality, for type, description, sensitive, and validation basics.
+
+Additional rules:
 
 - **Order**: required variables first (alphabetical), then optional (alphabetical).
 - `type` MUST be as precise as possible — avoid `any`.
@@ -181,27 +163,8 @@ All variables MUST have `type` and `description`.
 - `nullable = true` MUST be avoided unless null carries specific semantic meaning.
 - `sensitive = false` MUST NOT be declared (it is the default).
 - Sensitive variables MUST NOT have default values.
-- Use `validation {}` for variables with constrained allowed values.
-
-```hcl
-# Bad
-variable "env" {}
-
-# Good
-variable "environment" {
-  type        = string
-  description = "Deployment environment."
-
-  validation {
-    condition     = contains(["dev", "can", "liv", "sbx", "tst", "uat", "stg", "prd"], var.environment)
-    error_message = "Must be one of: dev, can, liv, sbx, tst, uat, stg, prd."
-  }
-}
-```
-
-Feature toggle variables MUST use positive names (`xxx_enabled`, not `xxx_disabled`).
-
-Do NOT add `enabled` or `module_depends_on` variables to control the entire module.
+- Feature toggle variables MUST use positive names (`xxx_enabled`, not `xxx_disabled`).
+- Do NOT add `enabled` or `module_depends_on` variables to control the entire module.
 
 ---
 
@@ -348,9 +311,9 @@ terraform {
 
 Prefer AVM modules over custom implementations for standard Azure resources. Flag if a custom module reimplements something AVM already covers.
 
-### Version pinning
+> See [terraform-standards.md](terraform-standards.md) — AVM version checks, for version pinning severity levels.
 
-AVM modules MUST be referenced via the Terraform registry with a pinned version — never via git references.
+AVM modules MUST be referenced via the Terraform registry — never via git references:
 
 ```hcl
 # Bad — unpinned
@@ -370,12 +333,6 @@ module "storage" {
 }
 ```
 
-| Scenario | Severity |
-|---|---|
-| No version pinned | [BLOCKER] |
-| `0.0.x` version in production | [MAJOR] — high-churn pre-release, no stability guarantees |
-| `0.x.x` version in production without documented acceptance | [MINOR] — flag for awareness |
-
 ### AVM module block ordering
 
 Within AVM module blocks, use this order:
@@ -389,9 +346,7 @@ Within AVM module blocks, use this order:
 
 ## Module structure
 
-Every module MUST be self-contained with at minimum: `terraform.tf`, `main.tf`, `variables.tf`, `outputs.tf`.
-
-Add `locals.tf` when locals are used. Split large configurations across logical files.
+Every module MUST be self-contained with at minimum: `terraform.tf`, `main.tf`, `variables.tf`, `outputs.tf`. Add `locals.tf` when locals are used.
 
 ### Breaking change controls
 
@@ -415,80 +370,19 @@ When renaming resources, include a `moved {}` block to prevent destructive plan 
 
 ## State management
 
-- Remote state MUST be configured in Azure Storage — never local state.
-- State storage is provisioned separately from the module it tracks
-- Separate state files are used per environment (canary/live).
-- `terraform.tfstate` MUST NOT be committed to Git.
-
-```hcl
-# Bad — local state (no backend block)
-
-# Good — remote state
-terraform {
-  required_version = "~> 1.9"
-  backend "azurerm" {
-    resource_group_name  = "rg-<env>-<solution>-terraform-state"
-    storage_account_name = "<state-storage-account>"
-    container_name       = "tfstate"
-    key                  = "<solution>/terraform.tfstate"
-  }
-}
-```
+> See [terraform-standards.md](terraform-standards.md) — State management.
 
 ---
 
 ## Security
 
-- No hardcoded secrets, passwords, or keys — [BLOCKER], no exceptions.
-- Use managed identities instead of service principal secrets where possible.
-- Role assignments MUST be scoped to the minimum required scope (resource, not subscription), except for Landing Zone provisioning.
-- `prevent_destroy = true` on critical resources (state storage, Key Vault).
-- Sensitive outputs MUST be marked `sensitive = true`.
-
-```hcl
-# Bad
-resource "azurerm_kubernetes_cluster" "main" {
-  client_secret = "supersecret123"
-}
-
-# Good
-resource "azurerm_kubernetes_cluster" "main" {
-  identity {
-    type = "SystemAssigned"
-  }
-}
-```
-
----
-
-## Naming and tagging
-
-- Resource names follow `{type}-{env}{solution}` (or resource-type variant).
-- Names MUST be parameterised via variables or locals — never hardcoded strings.
-- Minimum required tags: `environment`, `solution`, `owner`, `cost_center`.
-- Tags MUST be applied consistently via `local.common_tags`.
-
-```hcl
-locals {
-  common_tags = {
-    cost_center = var.cost_center
-    environment = var.environment
-    owner       = var.owner
-    solution    = var.solution
-  }
-
-  resource_group_name = "rg-${var.environment}-${var.cost_center}-${var.solution}"
-}
-```
+> See [terraform-standards.md](terraform-standards.md) — Security.
 
 ---
 
 ## Code quality
 
-- Use `for_each` or `count` to avoid copy-paste of similar resources.
-- Keep `depends_on` minimal — prefer implicit dependencies via resource references.
-- Avoid `null_resource` and `local-exec` provisioners when a native resource exists.
-- Optimise resource dependencies for parallel execution where possible.
+> See [terraform-standards.md](terraform-standards.md) — Code quality and for_each vs count.
 
 ---
 

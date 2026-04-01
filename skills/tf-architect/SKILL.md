@@ -1,117 +1,251 @@
 ---
 name: tf-architect
-description: "Terraform architecture and code generation skill. Use when: designing Azure infrastructure with Terraform, generating Terraform code, using the terraform-code-generation plugin, using the terraform-module-generation plugin, selecting AVM modules, checking if an AVM module is production-ready, scaffolding a new module, deciding between custom module and AVM module, AVM version below 1, pre-release module warning."
-argument-hint: "Describe the Azure infrastructure you want to build, or the AVM module you are evaluating"
+description: "Scaffold and generate Terraform modules for Azure infrastructure, including resources, variables, outputs, and environment configurations. Handles naming conventions, versioning, test scaffolding, and code review integration."
+argument-hint: "Describe the Azure infrastructure or module you want to build"
 ---
 
 # Terraform Architect
 
-## When to Use
+Guide the user step-by-step through creating a Terraform module for Azure, following team standards.
 
-- You want to generate Terraform code for Azure resources
-- You need to scaffold a new reusable Terraform module
-- You are evaluating an AVM module and want to know if it is production-ready
-- You want to know which HashiCorp plugin to use (`terraform-code-generation` vs `terraform-module-generation`)
-- A generated module block references an AVM module version — always check it before accepting
+## Step 1 — Understand the goal
 
----
+Before searching for context, if the user has not already described what they need, ask:
 
-## Plugin Guide
+> What Azure infrastructure or module do you want to build? Describe the resource(s), the deployment context, and any specific requirements (e.g. private endpoints, managed identity, environment split).
 
-The following HashiCorp plugins are available in the **Claude Code CLI** after running:
+Ask the following questions **one at a time** — present the question with its labeled options, wait for the user's answer, then move to the next. Do not show multiple questions at once.
+
+**Q1**
+> Will `environment` and `solution` be the two variables that drive resource naming and tags — or do you need additional variables in the name?
+> - A) Yes — `environment` and `solution` are sufficient
+> - B) No — I need additional variables (describe)
+
+**Q2**
+> What environments do you need a `tfvars` file for?
+> - A) `dev`
+> - B) `can`
+> - C) `sbx`
+> - D) Other (describe)
+>
+> *(multi-select — you can pick more than one)*
+
+**Q3**
+> Do you want to follow company naming standards for resources, variables, and files?
+> - A) Yes
+> - B) No
+
+**Q4**
+> Do you want to use module versioning?
+> - A) Yes — scaffold inside a `v1.0.0/` subfolder
+> - B) No — place files directly in the module folder
+
+**Q5**
+> Which capabilities should the module support?
+> - A) Private endpoint
+> - B) Blob soft delete + versioning
+> - C) Lifecycle management
+> - D) Diagnostic settings to Log Analytics
+> - E) None — basic storage account only
+>
+> *(multi-select — you can pick more than one)*
+
+After all five answers are collected, confirm your understanding before moving on.
+
+## Step 2 — Generate the module
+
+Before writing any terraform code:
+
+If the user said yes to question nr 3: invoke the `repo-naming-checker` skill to gather information — do not rely on inline naming rules here.
+
+Read [`../../standards/templates/terraform-authoring-guide.md`](../../standards/templates/terraform-authoring-guide.md) in full.
+
+Generate the following files, conforming to the authoring guide:
+
+| File | Contents |
+|---|---|
+| `terraform.tf` | `terraform {}` block with `required_version` and `required_providers` only — no provider config |
+| `providers.tf` | Provider configurations (e.g. `provider "azurerm" { features {} }`) |
+| `main.tf` | Resources in dependency order |
+| `data.tf` | Data sources only — omit if the module has no data sources |
+| `variables.tf` | All input variables — alphabetical, each with `type`, `description`, and `validation` where values are constrained |
+| `outputs.tf` | All outputs — alphabetical, each with `description`; sensitive outputs marked `sensitive = true` |
+| `locals.tf` | Local values for name construction and the `common_tags` map |
+| `environments/dev.tfvars` | Sample environment file with structural vars only — no secrets |
+| `tests/<resource>.tftest.hcl` | Native Terraform test (see testing section below) |
+| `Makefile` | Shortcuts for validate, fmt, security scan, and test (see testing section below) |
+
+Produce all files in full before moving on.
+
+### Root-level backend configuration
+
+**Important:** After generating module files, ensure your **root-level deployment** (e.g., a `sandbox/` directory or top-level config) has a `backend.hcl` configuration that points to the bootstrapped Terraform state storage.
+
+If a `bootstrap/` directory exists in the repo with a `main.bicep` file, it creates the storage account for state. Generate or create a `backend.hcl.example` template at the root level showing:
+
+```hcl
+resource_group_name  = "rg-{environment}-{solution}-terraform-state"
+storage_account_name = "st{environment}{solution}tfstate"
+container_name       = "tfstate"
+key                  = "terraform.tfstate"
+```
+
+Instruct the user to:
+1. Copy `backend.hcl.example` → `backend.hcl`
+2. Fill in the resource group, storage account, and key values to match their bootstrap deployment
+3. Run `terraform init -backend-config=backend.hcl` before planning or applying
+
+**Module versioning** — If the user says yes to question 4: scaffold the files inside a `v1.0.0/` subfolder and increment for breaking changes so versions can coexist. If the user says no, follow the existing directory pattern instead.
 
 ```
-claude plugin install terraform-code-generation@hashicorp
-claude plugin install terraform-module-generation@hashicorp
+modules/<resource-type>/
+└── v1.0.0/          ← use if the project applies versioning
+    ├── terraform.tf
+    ├── providers.tf
+    ├── main.tf
+    ├── data.tf        ← omit if no data sources
+    ├── variables.tf
+    ├── outputs.tf
+    ├── locals.tf
+    ├── Makefile
+    ├── environments/
+    │   └── dev.tfvars
+    └── tests/
+        └── <resource>.tftest.hcl
 ```
 
-Invoke them with a `/` slash command inside a `claude` session, or describe your intent in chat and the agent will trigger the appropriate plugin.
+### Testing scaffold
 
-### `terraform-code-generation`
+Generate a `tests/<resource>.tftest.hcl` using Terraform's built-in test framework (requires Terraform ≥ 1.6). The test file must:
 
-**Use when you need** `.tf` files for one or more resources, provider/backend config, or a complete working configuration for a defined use-case.
+- Declare a `variables {}` block supplying all required inputs (use non-production values)
+- Include at least one `run` block that calls `plan` and asserts a key output or resource attribute
+- Never contain real secrets — use placeholder strings
 
-| Example prompts |
-|----------------|
-| `/terraform-code-generation Azure Storage Account with private endpoint and CMK` |
-| `/terraform-code-generation azurerm backend config for tfstate in West Europe` |
-| `/terraform-code-generation AKS cluster with system-assigned identity` |
+Example structure:
 
-**Output:** `main.tf`, `variables.tf`, `outputs.tf`, provider/backend blocks as needed.
+```hcl
+variables {
+  environment  = "dev"
+  solution     = "example"
+  location     = "norwayeast"
+  owner        = "platform-team"
+  cost_center  = "cc-0000"
+}
+
+run "storage_account_is_created" {
+  command = plan
+
+  assert {
+    condition     = azurerm_storage_account.main.min_tls_version == "TLS1_2"
+    error_message = "Storage account must enforce TLS 1.2."
+  }
+}
+```
+
+Generate a `Makefile` at the module root with these targets:
+
+```makefile
+.PHONY: validate fmt lint security test
+
+validate:
+	terraform init -backend=false
+	terraform validate
+
+fmt:
+	terraform fmt -recursive
+
+lint:
+	tflint --recursive
+
+security:
+	tfsec .
+
+test:
+	terraform test
+
+all: fmt validate lint security test
+```
+
+### Backend configuration for deployment
+
+If your repository has a `bootstrap/` directory with Bicep infrastructure-as-code, it provisions a storage account for Terraform state. Before deploying your Terraform modules, configure the backend:
+
+1. Deploy the bootstrap infrastructure first (one-time):
+   ```bash
+   az deployment sub create -l norwayeast -f bootstrap/main.bicep
+   ```
+
+2. Copy the `backend.hcl.example` file to `backend.hcl` at the root level and fill in the values to match your bootstrap deployment
+
+3. When deploying modules, initialize Terraform with the backend config:
+   ```bash
+   terraform init -backend-config=backend.hcl
+   ```
+
+### Testing instructions for users
+
+After generating all files, present the following instructions to the user:
 
 ---
 
-### `terraform-module-generation`
+**Running the tests**
 
-**Use when you need** a full reusable module scaffold — the complete folder structure with all standard files.
+1. Install prerequisites (once):
+   - [Terraform ≥ 1.6](https://developer.hashicorp.com/terraform/install)
+   - [tflint](https://github.com/terraform-linters/tflint) — `brew install tflint` / `choco install tflint`
+   - [tfsec](https://aquasecurity.github.io/tfsec) — `brew install tfsec` / `choco install tfsec`
 
-| Example prompts |
-|----------------|
-| `/terraform-module-generation create a module for Azure Container Registry` |
-| `/terraform-module-generation scaffold a network module with VNet and subnets` |
-| `/terraform-module-generation reusable AKS module with configurable node pools` |
+2. Navigate to the module directory:
+   ```bash
+   cd modules/<resource-type>/v1.0.0   # adjust path as needed
+   ```
 
-**Output:** Full module folder with `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`, `README.md`.
+3. Run all checks at once:
+   ```bash
+   make all
+   ```
 
----
+   Or run individual targets:
+   ```bash
+   make validate   # initialise (no backend) + validate HCL
+   make fmt        # auto-format all .tf files
+   make lint       # tflint static analysis
+   make security   # tfsec security scan
+   make test       # terraform test (runs tests/*.tftest.hcl)
+   ```
 
-## Choosing Between the Two Plugins
-
-| Situation | Use |
-|-----------|-----|
-| Need a single resource or a composition of resources for one deployment | `terraform-code-generation` |
-| Building something that will be called from multiple environments or root modules | `terraform-module-generation` |
-| AVM module exists but version < 1.0.0 (see below) | `terraform-module-generation` to build a custom replacement |
-
----
-
-## AVM Module Version Check
-
-> ⚠️ **When reviewing AVM modules, verify the AVM module versions before accepting generated code.**
-
-When any module block references an AVM source (`Azure/avm-*`), check the `version` field and apply these rules:
-
-| Version | Status | Required action |
-|---------|--------|-----------------|
-| No `version` pinned | ❌ **BLOCKER** | Pin an explicit version immediately — floating references silently pull in breaking changes |
-| `0.0.x` | ❌ **BLOCKER** | High-churn pre-release — **create a custom module** |
-| `0.x.x` (non-zero minor) | ⚠️ **MAJOR** | Pre-release with no stability guarantee — **create a custom module** |
-| `>= 1.0.0` | ✅ **OK** | Production-ready, safe to use |
-
-### Warning Message — AVM Module Below Version 1.0
-
-Whenever a plugin generates or suggests an AVM module with a version below `1.0.0`, surface this warning:
+4. The `terraform test` command runs in-process — it does **not** deploy real Azure resources unless you add a `run { command = apply }` block and supply valid credentials.
 
 ---
 
-> ⚠️ **Pre-release AVM module detected**
+## Step 3 — Review the generated code together
+
+Walk through the output with the user:
+
+> Here is the generated module. Before you make your edits, let me know if anything needs adjusting — resource configuration, variable defaults, naming, or structure.
+
+Apply any corrections, then tell the user:
+
+> The scaffold is ready. Make your project-specific edits now — variable values, resource configuration, naming, tags — then let me know when you are done and we will run the code review.
+
+Wait for the user to confirm they are done editing.
+
+## Step 4 — Trigger the code review
+
+Once the user confirms their edits are complete, ask:
+
+> Ready to run the code review? I will invoke two skills in sequence:
 >
-> The module **`<module-name>`** is at version **`<version>`** (< 1.0.0). Pre-release AVM modules carry **no stability guarantees** — interfaces, variable names, and defaults may change between patch releases without notice.
+> 1. `repo-naming-checker` — validates all Azure resource names, variable names, and file names
+> 2. `tf-code-reviewer` — reviews code correctness, security, and team standards
 >
-> **We will need to create a custom module instead.**
-> Use the `terraform-module-generation` plugin to scaffold it.
-> Reference the AVM module's [variable interface](https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-resource-modules/) as a guide for your own implementation, but do not depend on the module directly.
+> Run both now, or skip if you would prefer to review manually?
 
----
+If the user proceeds, invoke the skills in the order listed. **`repo-naming-checker` must return zero blockers and zero majors before `tf-code-reviewer` is invoked.** If naming violations are found, resolve them first, then proceed to the code review. Present all findings together before moving on. If findings are returned, work through them with the user before the PR is raised.
 
-Check the current production status of any AVM module at:
-- [AVM Resource Modules](https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-resource-modules/)
-- [AVM Pattern Modules](https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-pattern-modules/)
+Note: `tf-code-reviewer` will also run automatically on the PR via GitHub Actions.
 
----
+## Standards
 
-## Recommended Workflow
-
-1. **Define the goal** — describe the Azure resource or infrastructure pattern you need.
-
-2. **Check AVM availability**
-   - Search the [AVM Resource Modules index](https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-resource-modules/)
-   - If found AND version ≥ `1.0.0` → use it directly with `terraform-code-generation`
-   - If found AND version < `1.0.0` → scaffold a custom module with `terraform-module-generation`
-   - If not found → scaffold a custom module with `terraform-module-generation`
-
-3. **Generate the code** using the appropriate plugin command.
-
-4. **Apply team standards** — all generated code must conform to [`../../standards/templates/terraform-review.rules.md`](../../standards/templates/terraform-review.rules.md).
-
-5. **Review** — use the `tf-code-reviewer` skill to run a full review against team standards before committing.
+All generated code must conform to [`../../standards/templates/terraform-authoring-guide.md`](../../standards/templates/terraform-authoring-guide.md).
