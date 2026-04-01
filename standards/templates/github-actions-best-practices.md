@@ -140,6 +140,17 @@ Post plan output as an updating PR comment — use `peter-evans/find-comment` + 
 <!-- tf-plan-comment -->
 ```
 
+## tfsec
+
+`tfsec` is not pre-installed on `ubuntu-latest`. Always use the action — never `run: tfsec .`:
+
+```yaml
+- name: tfsec
+  uses: aquasecurity/tfsec-action@<sha> # v1.0.3
+  with:
+    working_directory: <path>   # relative to repo root — defaults.run.working-directory does NOT apply to uses: steps
+```
+
 ## Job structure — plan workflow
 
 Standard 2-job pattern for PR validation:
@@ -152,6 +163,24 @@ validate ──► plan ──► post plan comment to PR
 - **plan**: OIDC init + plan, artifact upload, PR plan comment — needs `id-token: write`
 
 `plan` runs only after `validate` passes.
+
+## Reusable workflows (`workflow_call`)
+
+A reusable workflow cannot use permissions beyond what the calling job explicitly grants. The calling job must declare the permissions the reusable workflow's jobs need:
+
+```yaml
+# caller workflow
+jobs:
+  plan:
+    permissions:
+      contents: read
+      id-token: write        # required if reusable workflow uses OIDC
+      pull-requests: write   # required if reusable workflow posts PR comments
+    uses: ./.github/workflows/_terraform-plan.yml
+    ...
+```
+
+Without this, GitHub blocks the run with: *"The nested job is requesting '...write' but is only allowed 'none'"*.
 
 ## State locking
 

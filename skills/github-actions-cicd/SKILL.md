@@ -44,7 +44,7 @@ Generate a complete workflow with these jobs:
 
 | Job | Needs | Steps |
 |-----|-------|-------|
-| `validate` | — | fmt check, setup-tflint, tflint init + cache, tflint, init -backend=false, validate, tfsec |
+| `validate` | — | fmt check, setup-tflint, tflint init + cache, tflint, init -backend=false, validate, `aquasecurity/tfsec-action` (not `run: tfsec .` — tfsec is not pre-installed on runners) |
 | `plan` | validate | init (OIDC + inline backend config), plan → `plan.txt`, read output, find+create-or-update PR comment, upload artifact |
 
 **Backend config** — always inline via `-backend-config` flags (not a committed file):
@@ -98,7 +98,13 @@ After generating the files, print this for the user:
 | `repo:<org>/<repo>:pull_request` | plan and cost jobs on PRs |
 | `repo:<org>/<repo>:ref:refs/heads/main` | apply job on merge to main |
 
-**Security reminder:** Pin all `uses:` entries to full commit SHAs before merging to `main`. See [standards/templates/github-actions-best-practices.md](../../standards/templates/github-actions-best-practices.md).
+**Security reminder:** Pin all `uses:` entries to full commit SHAs — look them up via the GitHub API, never guess. For each action at tag `vX.Y.Z`:
+```
+https://api.github.com/repos/<owner>/<repo>/git/ref/tags/vX.Y.Z
+```
+If the returned `object.type` is `"tag"` (annotated), follow the SHA to `git/tags/<sha>` to get the underlying commit SHA. See [standards/templates/github-actions-best-practices.md](../../standards/templates/github-actions-best-practices.md).
+
+**Reusable workflows:** If generating a reusable workflow (`workflow_call`), the calling job must explicitly grant the permissions the reusable workflow needs (`id-token: write`, `pull-requests: write`). See the reusable workflows section in the standards.
 
 ---
 

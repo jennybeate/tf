@@ -15,17 +15,6 @@ on:
         description: "Backend state key (e.g. sandbox/terraform.tfstate)"
         type: string
         required: true
-    secrets:
-      AZURE_CLIENT_ID:
-        required: true
-      AZURE_TENANT_ID:
-        required: true
-      AZURE_SUBSCRIPTION_ID:
-        required: true
-      TF_BACKEND_RESOURCE_GROUP:
-        required: true
-      TF_BACKEND_STORAGE_ACCOUNT:
-        required: true
 
 jobs:
   validate:
@@ -55,12 +44,12 @@ jobs:
           key: tflint-${{ runner.os }}-${{ hashFiles('.tflint.hcl') }}
 
       - name: Configure Terraform plugin cache dir
-        run: mkdir -p ~/.terraform.d/plugin-cache
+        run: mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache
 
       - name: Cache Terraform plugins
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: ~/.terraform.d/plugin-cache
+          path: ${{ runner.temp }}/.terraform.d/plugin-cache
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: ${{ runner.os }}-terraform-
 
@@ -70,7 +59,7 @@ jobs:
       - name: Terraform init (no backend)
         run: terraform init -backend=false
         env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/.terraform.d/plugin-cache
 
       - name: Terraform validate
         run: terraform validate
@@ -113,12 +102,12 @@ jobs:
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
 
       - name: Configure Terraform plugin cache dir
-        run: mkdir -p ~/.terraform.d/plugin-cache
+        run: mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache
 
       - name: Cache Terraform plugins
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: ~/.terraform.d/plugin-cache
+          path: ${{ runner.temp }}/.terraform.d/plugin-cache
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: ${{ runner.os }}-terraform-
 
@@ -132,7 +121,7 @@ jobs:
             -backend-config="key=${{ inputs.tf_state_key }}" \
             -backend-config="use_azuread_auth=true"
         env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/.terraform.d/plugin-cache
 
       - name: Terraform plan
         timeout-minutes: 10
