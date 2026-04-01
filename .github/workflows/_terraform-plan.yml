@@ -27,8 +27,6 @@ on:
       TF_BACKEND_STORAGE_ACCOUNT:
         required: true
 
-permissions: {}
-
 jobs:
   validate:
     name: Validate
