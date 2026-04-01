@@ -13,6 +13,10 @@ concurrency:
 
 jobs:
   plan:
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
     uses: ./.github/workflows/_terraform-plan.yml
     with:
       working_directory: sandbox
