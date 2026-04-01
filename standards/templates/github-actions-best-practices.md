@@ -190,7 +190,7 @@ apply:
 ## Review checklist
 
 - [ ] `permissions: {}` at workflow level; jobs have minimal per-job grants
-- [ ] All `uses:` pinned to full commit SHAs with version comment
+- [ ] All `uses:` pinned to full commit SHAs with version comment (look it up, don't guess the SHA)
 - [ ] Concurrency group cancels stale runs
 - [ ] OIDC used for Azure authentication — `ARM_USE_OIDC: "true"`, no long-lived secrets
 - [ ] `ARM_*` env vars scoped to the jobs that run Terraform
