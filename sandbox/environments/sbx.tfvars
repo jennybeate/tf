@@ -1,0 +1,6 @@
+cost_center      = "cc-0000"
+environment      = "sbx"
+location         = "norwayeast"
+owner            = "platform-team"
+replication_type = "LRS"
+solution         = "platform-terraform"
