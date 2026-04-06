@@ -2,37 +2,83 @@
 
 This guide is to help you define how to write Terraform modules for Azure at Nimtech. It is the source of truth for generative work — what to do and how to do it. For review checks and what will be flagged, see `terraform-standards.md`.
 
+## Before you start — AVM check
+
+**Prefer Azure Verified Modules (AVM) over custom implementations for standard Azure resources: AKS, Key Vault, networking, and identity.**
+
+Check the AVM catalogue before writing any resources. Only proceed with a custom module if:
+- No AVM module exists for the resource type, or
+- You have documented justification (add a comment or README explaining why)
+
+Always pin an explicit version — never use a floating reference:
+
+```hcl
+# ✅ GOOD — pinned stable version
+module "key_vault" {
+  source  = "Azure/avm-res-keyvault-vault/azurerm"
+  version = "0.9.0"
+}
+
+# ❌ BAD — unpinned, will silently pull breaking changes
+module "key_vault" {
+  source = "Azure/avm-res-keyvault-vault/azurerm"
+}
+```
+
+Avoid `0.0.x` versions in production — these are high-churn pre-release builds with no stability guarantees.
+
+---
+
 ## File structure
 
-Every module must follow this structure:
+Every Terraform codebase has two distinct layers with different responsibilities. **Never mix them.**
+
+### Reusable module — `modules/<resource-type>/v1.0.0/`
 
 | File | Purpose |
 |---|---|
-| `terraform.tf` | Terraform version constraint and required providers only — no provider configuration |
-| `providers.tf` | Provider configurations |
+| `terraform.tf` | `required_version` and `required_providers` only — no provider config, no backend block |
 | `main.tf` | Resources and data sources in dependency order |
+| `data.tf` | Data sources only — omit if none |
 | `variables.tf` | Input variable declarations — alphabetical |
 | `outputs.tf` | Output declarations — alphabetical |
 | `locals.tf` | Local values used to avoid repetition and construct names |
 
-Versioning is recommended — use a `v1.0.0/` subfolder and increment for breaking changes so versions can coexist. Follow the existing directory pattern if the project does not use versioning.
+**`providers.tf` does not belong in a module.** Provider blocks inside modules are forbidden — the calling deployment root owns provider configuration. The module only declares `required_providers` in `terraform.tf` so Terraform knows what provider it depends on.
 
+### Deployment root — `deployments/<resource-type>/`
 
-Environment-specific values go in `environments/`:
+| File | Purpose |
+|---|---|
+| `terraform.tf` | `required_version`, `required_providers`, and `backend "azurerm" {}` |
+| `providers.tf` | Provider configurations (`provider "azurerm" { features { ... } }`) |
+| `main.tf` | `module` block(s) calling the reusable module, passing all variables through |
+| `variables.tf` | Input variables — mirrors the module's variables |
+| `outputs.tf` | Re-exposes module outputs via `module.<name>.<output>` |
+| `environments/<env>.tfvars` | Environment-specific values — structural only, no secrets |
+
+See `sandbox/` in this repo as a reference deployment root.
+
+Versioning applies to modules only — use a `v1.0.0/` subfolder and increment for breaking changes. Deployment roots do not use version subfolders.
 
 ```
 modules/<resource-type>/
 └── v1.0.0/
-    ├── terraform.tf
-    ├── providers.tf
+    ├── terraform.tf       ← required_version + required_providers only
     ├── main.tf
+    ├── data.tf            ← omit if no data sources
     ├── variables.tf
     ├── outputs.tf
-    ├── locals.tf
+    └── locals.tf
+
+deployments/<resource-type>/
+    ├── terraform.tf       ← required_version + required_providers + backend "azurerm" {}
+    ├── providers.tf       ← provider "azurerm" { features { ... } }
+    ├── main.tf            ← module block calling modules/<resource-type>/v1.0.0
+    ├── variables.tf
+    ├── outputs.tf
     └── environments/
-        ├── dev.tfvars
-        ├── stg.tfvars
-        └── prd.tfvars
+        └── <env>.tfvars
 ```
 
 ## Naming
@@ -186,20 +232,6 @@ resource "azurerm_kubernetes_cluster" "main" {
 ```
 
 Set `prevent_destroy = true` in the `lifecycle` block for critical resources (state storage, Key Vault).
-
-## Azure Verified Modules (AVM)
-
-Prefer AVM over custom implementations for standard Azure resources (AKS, Key Vault, networking, identity). Always pin an explicit version:
-
-```hcl
-# ✅ GOOD — pinned stable version
-module "aks" {
-  source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
-  version = "0.3.0"
-}
-```
-
-Avoid `0.0.x` versions in production — these are high-churn pre-release builds.
 
 ## Provider selection
 

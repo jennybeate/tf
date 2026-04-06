@@ -56,62 +56,66 @@ After all five answers are collected, confirm your understanding before moving o
 
 Before writing any terraform code:
 
-If the user said yes to question nr 3: invoke the `repo-naming-checker` skill to gather information — do not rely on inline naming rules here.
+If the user said yes to question nr 3: invoke the `naming-checker` skill to gather information — do not rely on inline naming rules here.
 
-Read [`../../standards/templates/terraform-authoring-guide.md`](../../standards/templates/terraform-authoring-guide.md) in full.
+Read the following documents in full using the Read tool directly — do not delegate to a subagent or rely on a summary. Every section is load-bearing; summarisation has historically caused sections to be silently skipped.
 
-Generate the following files, conforming to the authoring guide:
+1. [`../../standards/templates/terraform-authoring-guide.md`](../../standards/templates/terraform-authoring-guide.md) — authoritative guide for generative work, including the AVM check gate
+2. [`../../standards/templates/naming-conventions.md`](../../standards/templates/naming-conventions.md) — naming rules that must inform code generation, not just post-generation review. Pay particular attention to: environment token rules (`can`/`liv` only — `canary`/`live` is a BLOCKER), CAF abbreviations, and storage account constraints (no dashes, lowercase, 3-24 chars). Apply these rules when constructing names in `locals.tf`.
+
+Generate two sets of files — the reusable **module** and the **deployment root** that calls it. These are always separate directories with distinct responsibilities.
+
+**CRITICAL: `providers.tf` belongs in the deployment root only — never in the module.** Provider blocks inside modules are forbidden by team standards. The module declares `required_providers` in `terraform.tf` so Terraform knows what it needs, but the actual `provider {}` configuration always lives in the deployment root.
+
+#### Module files — `modules/<resource-type>/v1.0.0/`
 
 | File | Contents |
 |---|---|
-| `terraform.tf` | `terraform {}` block with `required_version` and `required_providers` only — no provider config |
-| `providers.tf` | Provider configurations (e.g. `provider "azurerm" { features {} }`) |
+| `terraform.tf` | `terraform {}` block with `required_version` and `required_providers` only — no provider config, no backend block |
 | `main.tf` | Resources in dependency order |
 | `data.tf` | Data sources only — omit if the module has no data sources |
 | `variables.tf` | All input variables — alphabetical, each with `type`, `description`, and `validation` where values are constrained |
 | `outputs.tf` | All outputs — alphabetical, each with `description`; sensitive outputs marked `sensitive = true` |
 | `locals.tf` | Local values for name construction and the `common_tags` map |
-| `environments/dev.tfvars` | Sample environment file with structural vars only — no secrets |
 | `tests/<resource>.tftest.hcl` | Native Terraform test (see testing section below) |
 | `Makefile` | Shortcuts for validate, fmt, security scan, and test (see testing section below) |
 
-Produce all files in full before moving on.
+#### Deployment root files — `deployments/<resource-type>/`
 
-### Root-level backend configuration
+| File | Contents |
+|---|---|
+| `terraform.tf` | `terraform {}` block with `required_version`, `required_providers`, and `backend "azurerm" {}` |
+| `providers.tf` | Provider configurations (e.g. `provider "azurerm" { features {} }`) |
+| `main.tf` | `module "<resource_type>" { source = "../../modules/<resource-type>/v1.0.0" ... }` — passes all variables through |
+| `variables.tf` | Same variables as the module — drives what gets passed in |
+| `outputs.tf` | Re-exposes module outputs via `module.<name>.<output>` |
+| `environments/<env>.tfvars` | Environment-specific values — structural only, no secrets |
 
-**Important:** After generating module files, ensure your **root-level deployment** (e.g., a `sandbox/` directory or top-level config) has a `backend.hcl` configuration that points to the bootstrapped Terraform state storage.
+The deployment root follows the same pattern as `sandbox/` in this repo. Look at `sandbox/` for a reference implementation.
 
-If a `bootstrap/` directory exists in the repo with a `main.bicep` file, it creates the storage account for state. Generate or create a `backend.hcl.example` template at the root level showing:
-
-```hcl
-resource_group_name  = "rg-{environment}-{solution}-terraform-state"
-storage_account_name = "st{environment}{solution}tfstate"
-container_name       = "tfstate"
-key                  = "terraform.tfstate"
-```
-
-Instruct the user to:
-1. Copy `backend.hcl.example` → `backend.hcl`
-2. Fill in the resource group, storage account, and key values to match their bootstrap deployment
-3. Run `terraform init -backend-config=backend.hcl` before planning or applying
-
-**Module versioning** — If the user says yes to question 4: scaffold the files inside a `v1.0.0/` subfolder and increment for breaking changes so versions can coexist. If the user says no, follow the existing directory pattern instead.
+**Module versioning** — If the user says yes to question 4: scaffold the module files inside a `v1.0.0/` subfolder. The deployment root does not use version subfolders.
 
 ```
 modules/<resource-type>/
-└── v1.0.0/          ← use if the project applies versioning
-    ├── terraform.tf
-    ├── providers.tf
+└── v1.0.0/
+    ├── terraform.tf       ← required_version + required_providers only
     ├── main.tf
-    ├── data.tf        ← omit if no data sources
+    ├── data.tf            ← omit if no data sources
     ├── variables.tf
     ├── outputs.tf
     ├── locals.tf
     ├── Makefile
-    ├── environments/
-    │   └── dev.tfvars
     └── tests/
         └── <resource>.tftest.hcl
+
+deployments/<resource-type>/
+    ├── terraform.tf       ← required_version + required_providers + backend "azurerm" {}
+    ├── providers.tf       ← provider "azurerm" { features { ... } }
+    ├── main.tf            ← module block calling modules/<resource-type>/v1.0.0
+    ├── variables.tf
+    ├── outputs.tf
+    └── environments/
+        └── <env>.tfvars
 ```
 
 ### Testing scaffold
@@ -237,12 +241,12 @@ Once the user confirms their edits are complete, ask:
 
 > Ready to run the code review? I will invoke two skills in sequence:
 >
-> 1. `repo-naming-checker` — validates all Azure resource names, variable names, and file names
+> 1. `naming-checker` — validates all Azure resource names, variable names, and file names
 > 2. `tf-code-reviewer` — reviews code correctness, security, and team standards
 >
 > Run both now, or skip if you would prefer to review manually?
 
-If the user proceeds, invoke the skills in the order listed. **`repo-naming-checker` must return zero blockers and zero majors before `tf-code-reviewer` is invoked.** If naming violations are found, resolve them first, then proceed to the code review. Present all findings together before moving on. If findings are returned, work through them with the user before the PR is raised.
+If the user proceeds, invoke the skills in the order listed. **`naming-checker` must return zero blockers and zero majors before `tf-code-reviewer` is invoked.** If naming violations are found, resolve them first, then proceed to the code review. Present all findings together before moving on. If findings are returned, work through them with the user before the PR is raised.
 
 Note: `tf-code-reviewer` will also run automatically on the PR via GitHub Actions.
 

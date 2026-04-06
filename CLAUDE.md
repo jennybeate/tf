@@ -12,5 +12,5 @@ Do NOT use the built-in Skill tool for these — they are not automatically regi
 | `repo-code-reviewer` | `skills/code-reviewer/` | Review PowerShell, Bicep, or pipeline code against standards |
 | `tf-architect` | `skills/tf-architect/` | Scaffold and generate Terraform modules for Azure infrastructure |
 | `github-actions-cicd` | `skills/github-actions-cicd/` | Design, generate, and review GitHub Actions workflows for CI/CD |
-| `repo-naming-checker` | `skills/naming-checker/` | Check file, folder, or Azure resource naming conventions |
+| `naming-checker` | `skills/naming-checker/` | Check file, folder, or Azure resource naming conventions |
 | `tf-code-reviewer` | `skills/tf-code-reviewer/` | Review Terraform (.tf/.tfvars) code against team standards |

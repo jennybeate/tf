@@ -221,7 +221,7 @@ All skills are invoked through Claude Code. In VS Code, use the chat panel. In t
 | `tf-architect` | Scaffold a new module or deployment | `use tf-architect to scaffold...` |
 | `github-actions-cicd` | Generate plan/apply workflows | `use github-actions-cicd to set up CI/CD for...` |
 | `tf-code-reviewer` | Review .tf files against standards | `use tf-code-reviewer to review...` |
-| `repo-naming-checker` | Validate Azure resource naming | `use repo-naming-checker to check...` |
+| `naming-checker` | Validate Azure resource naming | `use naming-checker to check...` |
 
 `CLAUDE.md` is loaded automatically and configures all skills — no manual setup required.
 
@@ -234,8 +234,7 @@ All code is written and reviewed against:
 | File | Purpose |
 |------|---------|
 | [`standards/templates/terraform-authoring-guide.md`](standards/templates/terraform-authoring-guide.md) | Module structure, naming, variables, outputs, tagging |
-| [`standards/templates/terraform-standards.md`](standards/templates/terraform-standards.md) | Team conventions |
-| [`standards/templates/terraform-review.rules.md`](standards/templates/terraform-review.rules.md) | Review rules and severity definitions |
+| [`standards/templates/terraform-standards.md`](standards/templates/terraform-standards.md) | Single source of truth — review rules, formatting, naming, security, AVM, testing |
 | [`standards/templates/github-actions-best-practices.md`](standards/templates/github-actions-best-practices.md) | Workflow structure, OIDC, SHA pinning |
 | [`standards/templates/naming-conventions.md`](standards/templates/naming-conventions.md) | Azure resource naming rules |
 
