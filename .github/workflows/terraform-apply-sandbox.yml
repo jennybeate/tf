@@ -1,0 +1,25 @@
+name: Terraform Apply — sandbox
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sandbox/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_terraform-apply.yml
+    with:
+      working_directory: sandbox
+      var_file: environments/sbx.tfvars
+      tf_state_key: sandbox/terraform.tfstate
+      environment: sandbox
+    secrets: inherit

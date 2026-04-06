@@ -7,7 +7,7 @@
 .terraform/
 
 # Local backend config — contains storage account details
-backend.hcl
+*backend.hcl
 
 # Variable files that may contain sensitive values
 *.auto.tfvars

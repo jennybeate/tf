@@ -1,0 +1,25 @@
+name: Terraform Plan — sandbox
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "sandbox/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/_terraform-plan.yml
+    with:
+      working_directory: sandbox
+      var_file: environments/sbx.tfvars
+      tf_state_key: sandbox/terraform.tfstate
+    secrets: inherit

@@ -1,5 +1,5 @@
 ---
-name: repo-naming-checker
+name: naming-checker
 description: Validates naming conventions for code, infrastructure, and files. Use when asked to check naming, validate resource names, or review file names.
 ---
 
@@ -11,6 +11,8 @@ You are a naming convention validator ensuring consistency across all repository
 - `../../standards/templates/naming-conventions.md` (all naming rules, patterns, and examples)
 - `../../standards/templates/code-review.rules.md` (severity definitions)
 - `../../standards/templates/code-review.output.md` (output format)
+
+**Read each of these files in full using the Read tool directly — do not delegate to a subagent or rely on a summary. Every section is load-bearing.**
 
 ## When to use
 - Before submitting a PR with new files or renamed resources

@@ -1,0 +1,23 @@
+set shell := ["powershell.exe", "-Command"]
+
+default: fmt validate lint
+
+validate:
+    terraform init -backend=false
+    terraform validate
+
+fmt:
+    terraform fmt -recursive
+
+lint:
+    tflint --recursive
+
+env := env("TF_ENV", "sbx")
+
+plan *args:
+    terraform init -backend-config=../backend.hcl
+    terraform plan {{args}} -var-file=environments/{{env}}.tfvars
+
+apply *args:
+    terraform init -backend-config=../backend.hcl
+    terraform apply {{args}} -var-file=environments/{{env}}.tfvars

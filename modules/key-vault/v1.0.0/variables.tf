@@ -23,17 +23,27 @@ variable "owner" {
   description = "Team or individual responsible for the resources."
 }
 
-variable "replication_type" {
+variable "sku_name" {
   type        = string
-  description = "Storage account replication type."
-  default     = "LRS"
+  description = "The SKU for the Key Vault. Use 'premium' if HSM-backed keys are required."
+  default     = "standard"
   validation {
-    condition     = contains(["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"], var.replication_type)
-    error_message = "Must be one of: LRS, GRS, RAGRS, ZRS, GZRS, RAGZRS."
+    condition     = contains(["standard", "premium"], var.sku_name)
+    error_message = "Must be one of: standard, premium."
+  }
+}
+
+variable "soft_delete_retention_days" {
+  type        = number
+  description = "Number of days soft-deleted objects are retained before permanent removal."
+  default     = 7
+  validation {
+    condition     = var.soft_delete_retention_days >= 7 && var.soft_delete_retention_days <= 90
+    error_message = "Must be between 7 and 90 days."
   }
 }
 
 variable "solution" {
   type        = string
-  description = "Solution or workload name. Used in resource naming. Keep short — storage account names are capped at 24 characters."
+  description = "Solution or workload name. Used in resource naming and tags."
 }
