@@ -36,8 +36,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+      - name: Install tools
+        run: bash "$GITHUB_WORKSPACE/scripts/install-tools.sh"
 
       - name: Configure Terraform plugin cache dir
         run: mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache
