@@ -1,6 +1,9 @@
 cost_center      = "cc-0000"
 environment      = "sbx"
 location         = "norwayeast"
+node_count_max   = 3
+node_count_min   = 1
+node_vm_size     = "Standard_D2s_v3"
 owner            = "platform-team"
 replication_type = "LRS"
 solution         = "platform-terraform"

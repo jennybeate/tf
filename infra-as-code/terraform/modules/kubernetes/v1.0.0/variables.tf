@@ -14,7 +14,7 @@ variable "environment" {
 
 variable "kubernetes_version" {
   type        = string
-  description = "Kubernetes version for the AKS cluster. Set to null to use the latest supported version."
+  description = "Kubernetes version. Set to null to use the latest supported version."
   default     = null
 }
 
@@ -26,19 +26,29 @@ variable "location" {
 
 variable "node_count_max" {
   type        = number
-  description = "Maximum number of nodes in the AKS default node pool."
+  description = "Maximum number of nodes in the default node pool."
   default     = 3
 }
 
 variable "node_count_min" {
   type        = number
-  description = "Minimum number of nodes in the AKS default node pool."
+  description = "Minimum number of nodes in the default node pool."
   default     = 1
+  validation {
+    condition     = var.node_count_min >= 1
+    error_message = "Minimum node count must be at least 1."
+  }
+}
+
+variable "node_os_disk_size_gb" {
+  type        = number
+  description = "OS disk size in GB for each node in the default node pool."
+  default     = 128
 }
 
 variable "node_vm_size" {
   type        = string
-  description = "VM size for nodes in the AKS default node pool."
+  description = "VM size for nodes in the default node pool."
   default     = "Standard_D2s_v3"
 }
 
@@ -47,17 +57,12 @@ variable "owner" {
   description = "Team or individual responsible for the resources."
 }
 
-variable "replication_type" {
+variable "resource_group_name" {
   type        = string
-  description = "Storage account replication type."
-  default     = "LRS"
-  validation {
-    condition     = contains(["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"], var.replication_type)
-    error_message = "Must be one of: LRS, GRS, RAGRS, ZRS, GZRS, RAGZRS."
-  }
+  description = "Name of the resource group in which to deploy resources."
 }
 
 variable "solution" {
   type        = string
-  description = "Solution or workload name. Used in resource naming. Keep short — storage account names are capped at 24 characters."
+  description = "Solution or workload name. Used in resource naming and tags."
 }
