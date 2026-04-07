@@ -1,5 +1,5 @@
 module "storage_account" {
-  source = "../modules/storage-account"
+  source = "../../modules/storage-account"
 
   cost_center      = var.cost_center
   environment      = var.environment

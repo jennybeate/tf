@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "sandbox/**"
+      - "infra-as-code/terraform/solutions/sandbox/**"
   workflow_dispatch:
 
 concurrency:
@@ -16,10 +16,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      pull-requests: write
     uses: ./.github/workflows/_terraform-plan.yml
     with:
-      working_directory: sandbox
-      var_file: environments/sbx.tfvars
-      tf_state_key: sandbox/terraform.tfstate
+      environment: sbx
+      solution: sandbox
     secrets: inherit

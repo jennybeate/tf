@@ -3,20 +3,12 @@ name: _terraform-apply (reusable)
 on:
   workflow_call:
     inputs:
-      working_directory:
-        description: "Path to the Terraform deployment directory (e.g. modules/key-vault/v1.0.0)"
-        type: string
-        required: true
-      var_file:
-        description: "Path to the .tfvars file, relative to working_directory (e.g. environments/sbx.tfvars)"
-        type: string
-        required: true
-      tf_state_key:
-        description: "Backend state key (e.g. modules/key-vault/terraform.tfstate)"
-        type: string
-        required: true
       environment:
-        description: "GitHub environment name that gates the apply step (e.g. sandbox)"
+        description: "Short environment code matching GitHub Environment name (e.g. sbx, can, liv)"
+        type: string
+        required: true
+      solution:
+        description: "Solution name matching folder under infra-as-code/terraform/solutions/ (e.g. sandbox)"
         type: string
         required: true
 
@@ -32,7 +24,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ${{ inputs.working_directory }}
+        working-directory: infra-as-code/terraform/solutions/${{ inputs.solution }}
 
     env:
       ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
@@ -61,10 +53,10 @@ jobs:
         timeout-minutes: 5
         run: |
           terraform init \
-            -backend-config="resource_group_name=${{ vars.TF_BACKEND_RESOURCE_GROUP }}" \
-            -backend-config="storage_account_name=${{ vars.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="resource_group_name=rg-${{ inputs.environment }}-platform-terraform-state" \
+            -backend-config="storage_account_name=st${{ inputs.environment }}platformtfstate" \
             -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ inputs.tf_state_key }}" \
+            -backend-config="key=${{ inputs.solution }}/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
         env:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/.terraform.d/plugin-cache
@@ -73,7 +65,7 @@ jobs:
         timeout-minutes: 20
         run: |
           terraform apply \
-            -var-file=${{ inputs.var_file }} \
+            -var-file=environments/${{ inputs.environment }}.tfvars \
             -lock-timeout=10m \
             -auto-approve \
             -no-color

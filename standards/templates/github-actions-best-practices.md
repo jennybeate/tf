@@ -151,9 +151,11 @@ Post plan output as an updating PR comment — use `peter-evans/find-comment` + 
     working_directory: <path>   # relative to repo root — defaults.run.working-directory does NOT apply to uses: steps
 ```
 
-## Job structure — plan workflow
+## Workflow structure
 
-Standard 2-job pattern for PR validation:
+There is no single required structure — teams may use separate plan/apply files, combined plan+apply templates, reusable workflows with thin callers, or other arrangements. Any structure is acceptable as long as the principles in this document are applied throughout.
+
+A common pattern used in this repo is a 2-job plan workflow:
 
 ```
 validate ──► plan ──► post plan comment to PR
@@ -162,7 +164,9 @@ validate ──► plan ──► post plan comment to PR
 - **validate**: fmt check, tflint, `terraform validate`, tfsec — no Azure credentials needed
 - **plan**: OIDC init + plan, artifact upload, PR plan comment — needs `id-token: write`
 
-`plan` runs only after `validate` passes.
+Another common pattern (e.g. migrating from Azure DevOps) is a combined plan+approval+apply template called by an environment-specific caller — equally valid.
+
+The non-negotiable principles are the same regardless of structure: SHA-pinned actions, OIDC auth, deny-all permissions with per-job grants, `vars.*` for non-secret config, `-lock-timeout` on all Terraform commands, and plan artifacts with sufficient retention.
 
 ## Reusable workflows (`workflow_call`)
 
@@ -181,6 +185,33 @@ jobs:
 ```
 
 Without this, GitHub blocks the run with: *"The nested job is requesting '...write' but is only allowed 'none'"*.
+
+## `env:` is not propagated to reusable workflows
+
+Workflow-level `env:` in the caller is **not** passed to called workflows — variables defined there are silently empty inside the reusable workflow. This is a common silent failure for `ARM_*` credentials:
+
+```yaml
+# ❌ BAD — ARM_* vars are empty inside the called workflow
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+jobs:
+  plan:
+    uses: ./.github/workflows/_terraform-plan.yml
+```
+
+Always set `ARM_*` env vars inside the jobs of the **reusable workflow itself**, not in the caller:
+
+```yaml
+# ✅ GOOD — set inside the reusable workflow's job
+jobs:
+  plan:
+    env:
+      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC:        "true"
+```
 
 ## State locking
 
@@ -201,19 +232,18 @@ Azure Storage backends lock state automatically via blob leases. Two CI concerns
 
 Use `-lock-timeout=5m` on plan and `-lock-timeout=10m` on apply — apply may need to wait longer if the plan lease has not fully cleared.
 
-## Apply workflow
+## Apply job
 
-For applying on merge to `main`:
+Regardless of how the apply is structured (separate file, combined template, or reusable workflow):
 
-- Use a GitHub `environment` with required reviewers on the apply job — prevents unreviewed applies.
-- Set `if: github.ref == 'refs/heads/main'` on the apply job.
-- Download the plan artifact from the plan workflow where possible (ensures what was reviewed is what gets applied).
+- Gate the apply job behind a GitHub `environment` with required reviewers — prevents unreviewed applies.
+- Download the plan artifact produced by the plan job where possible — ensures what was reviewed is what gets applied.
+- Use `-lock-timeout=10m` — apply may need to wait longer than plan if the plan lease has not fully cleared.
 
 ```yaml
 apply:
   environment: production   # triggers required-reviewer gate
   needs: plan
-  if: github.ref == 'refs/heads/main'
 ```
 
 ## Review checklist

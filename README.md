@@ -200,7 +200,7 @@ Triggers on pull requests to `main` that change files under `sandbox/**`.
 | `validate` | fmt check, tflint (cached), `terraform init -backend=false`, `terraform validate`, tfsec |
 | `plan` | OIDC init (inline backend config), `terraform plan`, plan comment on PR, artifact upload |
 
-The reusable workflow `_terraform-plan.yml` is parameterised — adding CI/CD for a new deployment is a new thin caller file, no copy-paste.
+The reusable workflow `_terraform-plan.yml`. A reusable workflow is a workflow file that can be called by other workflows (e.g canary/live) using the workflow_call trigger: it accepts inputs, secrets, and produces outputs.
 
 ### Apply workflow
 
