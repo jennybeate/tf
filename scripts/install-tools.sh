@@ -50,7 +50,7 @@ install_tfsec
 
 echo ""
 echo "Installed versions:"
-terraform version | head -1
+terraform -version
 tflint --version
 task --version
 tfsec --version
