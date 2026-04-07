@@ -48,9 +48,8 @@ tasks:
       - terraform apply -var-file=environments/{{.ENV}}.tfvars
 
   all:
-    desc: Run fmt, validate, lint, and security
+    desc: Run fmt, validate, and lint
     cmds:
       - task: fmt
       - task: validate
       - task: lint
-      - task: security

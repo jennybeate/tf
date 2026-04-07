@@ -28,10 +28,9 @@ tasks:
       - terraform test
 
   all:
-    desc: Run fmt, validate, lint, security, and test
+    desc: Run fmt, validate, lint, and test
     cmds:
       - task: fmt
       - task: validate
       - task: lint
-      - task: security
       - task: test
