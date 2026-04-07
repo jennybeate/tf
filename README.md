@@ -10,39 +10,40 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 .
 ├── .github/
 │   └── workflows/
-│       ├── _terraform-plan.yml    # Reusable plan/validate workflow
-│       └── terraform-plan.yml     # Sandbox caller — triggers on sandbox/** PRs
-├── bootstrap/
-│   └── main.bicep                 # One-time: provisions Terraform state storage
-├── backend.hcl                    # gitignored — points to state storage (fill in locally)
-├── modules/
-│   └── storage-account/           # Reusable storage account module
-│       ├── main.tf
-│       ├── variables.tf
-│       ├── outputs.tf
-│       ├── locals.tf
-│       ├── terraform.tf
-│       ├── providers.tf
-│       ├── Justfile               # Local dev commands
-│       └── environments/
-│           └── sbx.tfvars
-├── sandbox/                       # Deployment: calls modules/storage-account
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   ├── terraform.tf
-│   ├── providers.tf
-│   ├── Justfile                   # Local dev commands
-│   └── environments/
-│       └── sbx.tfvars
-├── skills/                        # Claude Code AI skills
-│   ├── tf-architect/              # Scaffold Terraform modules and deployments
-│   ├── github-actions-cicd/       # Generate GitHub Actions workflows
-│   ├── tf-code-reviewer/          # Review .tf files against standards
-│   └── naming-checker/            # Validate Azure resource naming
+│       ├── _terraform-plan.yml          # Reusable plan/validate workflow
+│       ├── _terraform-apply.yml         # Reusable apply workflow
+│       ├── terraform-plan-sandbox.yml   # Sandbox PR trigger — plan
+│       └── terraform-apply-sandbox.yml  # Sandbox merge trigger — apply
+├── infra-as-code/
+│   ├── bicep/
+│   │   └── bootstrap/
+│   │       ├── main.bicep               # One-time: provisions Terraform state storage
+│   │       └── config/parameters/
+│   │           └── bootstrap.bicepparam
+│   └── terraform/
+│       ├── modules/
+│       │   ├── storage-account/         # Reusable storage account module
+│       │   └── key-vault/v1.0.0/        # Reusable key vault module (with tests)
+│       └── solutions/
+│           └── sandbox/                 # Sandbox deployment — calls modules
+│               ├── main.tf
+│               ├── variables.tf
+│               ├── outputs.tf
+│               ├── terraform.tf
+│               ├── providers.tf
+│               ├── Taskfile.yml         # Local dev commands
+│               └── environments/
+│                   └── sbx.tfvars
+├── scripts/
+│   └── install-tools.sh                 # Install all required tools (versions pinned)
+├── skills/                              # Claude Code AI skills
+│   ├── tf-architect/                    # Scaffold Terraform modules and deployments
+│   ├── github-actions-cicd/             # Generate GitHub Actions workflows
+│   ├── tf-code-reviewer/                # Review .tf files against standards
+│   └── naming-checker/                  # Validate Azure resource naming
 ├── standards/
-│   └── templates/                 # Authoring guides and review rules
-├── CLAUDE.md                      # Claude Code context — loaded automatically
+│   └── templates/                       # Authoring guides and review rules
+├── CLAUDE.md                            # Claude Code context — loaded automatically
 └── README.md
 ```
 
@@ -52,12 +53,14 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 
 | Tool | Install |
 |------|---------|
-| Terraform ≥ 1.6 | [developer.hashicorp.com](https://developer.hashicorp.com/terraform/install) |
 | Azure CLI | [learn.microsoft.com](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) |
-| Just | [just.systems](https://just.systems/man/en/packages.html) |
-| tflint | [github.com/terraform-linters/tflint](https://github.com/terraform-linters/tflint) |
-| tfsec | [github.com/aquasecurity/tfsec](https://github.com/aquasecurity/tfsec) |
 | Claude Code | [claude.ai/code](https://claude.ai/code) |
+
+Terraform, tflint, tfsec, and Task are installed via script — versions are pinned in [`scripts/install-tools.sh`](scripts/install-tools.sh):
+
+```bash
+bash scripts/install-tools.sh
+```
 
 After installing tflint, run `tflint --init` in the repo root to install the azurerm ruleset.
 
@@ -74,7 +77,8 @@ az ad sp show --id <AZURE_CLIENT_ID> --query id -o tsv
 # Deploy the state backend
 az deployment sub create \
   --location norwayeast \
-  --template-file bootstrap/main.bicep \
+  --template-file infra-as-code/bicep/bootstrap/main.bicep \
+  --parameters infra-as-code/bicep/bootstrap/config/parameters/bootstrap.bicepparam \
   --parameters deploymentIdentityObjectId="<object-id>"
 ```
 
@@ -115,16 +119,13 @@ This creates:
 
 ---
 
-## Step 3 — Local backend config
+## Step 3 — Authenticate locally
 
-`backend.hcl` is gitignored and must be filled in locally before running `terraform init`:
+The `Taskfile.yml` constructs backend config from the `ENV` variable (default: `sbx`) — no `backend.hcl` file is needed. Log in with the Azure CLI before running any `task plan` or `task apply`:
 
-```hcl
-# backend.hcl (already present at repo root — fill in your values)
-resource_group_name  = "rg-sbx-platform-terraform-state"
-storage_account_name = "stsbxplatformtfstate"
-container_name       = "tfstate"
-key                  = "sandbox/terraform.tfstate"
+```bash
+az login
+az account set --subscription <AZURE_SUBSCRIPTION_ID>
 ```
 
 ---
@@ -139,7 +140,9 @@ Use the `tf-architect` skill in Claude Code. It walks you through module require
 use tf-architect to scaffold an Azure Key Vault module
 ```
 
-The skill generates: `main.tf`, `variables.tf`, `outputs.tf`, `locals.tf`, `terraform.tf`, `providers.tf`, `Justfile`, and `environments/<env>.tfvars`.
+The skill generates: `main.tf`, `variables.tf`, `outputs.tf`, `locals.tf`, `terraform.tf`, `providers.tf`, `Taskfile.yml`, and `environments/<env>.tfvars`.
+
+Modules may also include a `tests/` directory with `.tftest.hcl` files — see `key-vault/v1.0.0/tests/` for an example. Run tests with `terraform test` from the module directory.
 
 ### Scaffolding a new deployment (e.g. sandbox)
 
@@ -163,24 +166,29 @@ The skill produces:
 
 ### Local development
 
-Each deployment directory has a `Justfile` with these targets:
+Each deployment directory has a `Taskfile.yml` with these targets:
 
 ```bash
-cd sandbox
+cd infra-as-code/terraform/solutions/sandbox
 
-just validate   # terraform init (no backend) + validate
-just fmt        # terraform fmt -recursive
-just lint       # tflint --recursive
-just plan       # terraform init (with backend.hcl) + plan -var-file=environments/sbx.tfvars
-just apply      # terraform init (with backend.hcl) + apply -var-file=environments/sbx.tfvars
-just            # runs fmt → validate → lint (default)
+task validate   # terraform init (no backend) + validate
+task fmt        # terraform fmt -recursive
+task lint       # tflint --recursive
+task security   # tfsec security scan
+task plan       # terraform init (inline backend config) + plan
+task apply      # terraform init (inline backend config) + apply
+task all        # runs fmt → validate → lint
 ```
 
-`just plan` and `just apply` read `../backend.hcl` — make sure it is filled in first.
+Override the environment with `ENV=<env>` (default: `sbx`):
+
+```bash
+ENV=can task plan
+```
 
 ### Opening a PR
 
-Push your branch and open a PR against `main`. The plan pipeline triggers automatically on any change under `sandbox/**`:
+Push your branch and open a PR against `main`. The plan pipeline triggers automatically on any change under `infra-as-code/terraform/solutions/sandbox/**`:
 
 1. **Validate job** — fmt check, tflint, `terraform validate`, tfsec
 2. **Plan job** (runs only if validate passes) — `terraform init` + `terraform plan`, plan output posted as a PR comment, binary plan uploaded as an artifact
@@ -191,23 +199,29 @@ Fix any failures, then get a review and merge.
 
 ## CI/CD pipeline
 
-### `terraform-plan.yml` (PR trigger)
+### `terraform-plan-sandbox.yml` (PR trigger)
 
-Triggers on pull requests to `main` that change files under `sandbox/**`.
+Triggers on pull requests to `main` that change files under `infra-as-code/terraform/solutions/sandbox/**`.
 
 | Job | Steps |
 |-----|-------|
-| `validate` | fmt check, tflint (cached), `terraform init -backend=false`, `terraform validate`, tfsec |
+| `validate` | install tools, fmt check, tflint, `terraform init -backend=false`, `terraform validate`, tfsec |
 | `plan` | OIDC init (inline backend config), `terraform plan`, plan comment on PR, artifact upload |
 
-The reusable workflow `_terraform-plan.yml`. A reusable workflow is a workflow file that can be called by other workflows (e.g canary/live) using the workflow_call trigger: it accepts inputs, secrets, and produces outputs.
+Uses the reusable workflow `_terraform-plan.yml`, which accepts inputs, secrets, and produces outputs — call it from any environment-specific caller workflow.
 
-### Apply workflow
+### `terraform-apply-sandbox.yml` (merge trigger)
 
-No apply workflow is configured yet. To add one, run:
+Triggers on pushes to `main` that change files under `infra-as-code/terraform/solutions/sandbox/**`.
+
+| Job | Steps |
+|-----|-------|
+| `apply` | OIDC init (inline backend config), `terraform apply` using the plan artifact from the PR |
+
+Uses the reusable workflow `_terraform-apply.yml`. To add CI/CD for a new deployment, run:
 
 ```
-use github-actions-cicd to add an apply workflow for the sandbox deployment
+use github-actions-cicd to set up plan and apply workflows for <your deployment path>
 ```
 
 ---
