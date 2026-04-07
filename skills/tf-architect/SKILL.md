@@ -63,6 +63,10 @@ Read the following documents in full using the Read tool directly — do not del
 1. [`../../standards/templates/terraform-authoring-guide.md`](../../standards/templates/terraform-authoring-guide.md) — authoritative guide for generative work, including the AVM check gate
 2. [`../../standards/templates/naming-conventions.md`](../../standards/templates/naming-conventions.md) — naming rules that must inform code generation, not just post-generation review. Pay particular attention to: environment token rules (`can`/`liv` only — `canary`/`live` is a BLOCKER), CAF abbreviations, and storage account constraints (no dashes, lowercase, 3-24 chars). Apply these rules when constructing names in `locals.tf`.
 
+**Identity:** Always use `UserAssigned` managed identity, not `SystemAssigned`, unless the resource type explicitly does not support user-assigned identities. Create a dedicated `azurerm_user_assigned_identity` resource named `id-{environment}-{solution}` and pass its ID via `identity_ids`. Never default to `SystemAssigned` without documented justification.
+
+**Resource group ownership:** Modules never create their own resource group. The deployment root (solution) creates the resource group and passes `resource_group_name` to each module. Every module must declare a required `resource_group_name` variable. This allows multiple modules in the same solution to share a single resource group. The solution should also define a `locals` block with `resource_group_name` and `common_tags`, and create `azurerm_resource_group.main` before any module calls.
+
 Generate two sets of files — the reusable **module** and the **deployment root** that calls it. These are always separate directories with distinct responsibilities.
 
 **CRITICAL: `providers.tf` belongs in the deployment root only — never in the module.** Provider blocks inside modules are forbidden by team standards. The module declares `required_providers` in `terraform.tf` so Terraform knows what it needs, but the actual `provider {}` configuration always lives in the deployment root.

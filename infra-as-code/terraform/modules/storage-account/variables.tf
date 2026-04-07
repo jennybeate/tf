@@ -33,6 +33,11 @@ variable "replication_type" {
   }
 }
 
+variable "resource_group_name" {
+  type        = string
+  description = "Name of the resource group in which to deploy resources."
+}
+
 variable "solution" {
   type        = string
   description = "Solution or workload name. Used in resource naming. Keep short — storage account names are capped at 24 characters."
