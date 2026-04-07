@@ -44,10 +44,18 @@ Generate a complete workflow with these jobs:
 
 | Job | Needs | Steps |
 |-----|-------|-------|
-| `validate` | — | checkout, setup-terraform, `arduino/setup-task`, `task all` (runs fmt, validate, lint, security via the solution's Taskfile) |
-| `plan` | validate | checkout, setup-terraform, cache Terraform plugins, init (OIDC + inline backend config), plan, upload artifact |
+| `validate` | — | checkout, install tools (`bash "$GITHUB_WORKSPACE/scripts/install-tools.sh"`), `task all` (fmt, validate, lint), tfsec (separate step — see below) |
+| `plan` | validate | checkout, install tools, cache Terraform plugins, init (OIDC + inline backend config), plan, upload artifact |
 
-**Taskfile requirement** — every solution must have a `Taskfile.yml` with an `all` task that runs `fmt`, `validate`, `lint`, and `security` in order.
+**Taskfile requirement** — every solution must have a `Taskfile.yml` with an `all` task that runs `fmt`, `validate`, and `lint`. Security (`tfsec`) runs as a separate step in the pipeline so it can be made non-blocking.
+
+**tfsec — non-blocking for non-production:** tfsec always runs, but must not stop the pipeline unless the environment is production. Use `continue-on-error` conditioned on the environment input:
+
+```yaml
+- name: tfsec
+  run: tfsec .
+  continue-on-error: ${{ !contains(fromJSON('["prd","prod","production"]'), inputs.environment) }}
+```
 
 **Backend config** — always inline via `-backend-config` flags derived from `environment` and `solution` inputs:
 - `resource_group_name=rg-<environment>-platform-terraform-state`

@@ -36,6 +36,7 @@ jobs:
 
       - name: tfsec
         run: tfsec .
+        continue-on-error: ${{ !contains(fromJSON('["prd","prod","production"]'), inputs.environment) }}
 
   plan:
     name: Plan
