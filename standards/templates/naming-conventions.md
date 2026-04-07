@@ -1,5 +1,39 @@
 # Naming Conventions
 
+## Contents
+
+- [Severity Guidelines](#severity-guidelines)
+- [1. Azure Resource Names](#1-azure-resource-names)
+  - [Validation Rules](#validation-rules)
+  - [Storage Account Special Rules](#storage-account-special-rules)
+- [2. PowerShell Files](#2-powershell-files)
+  - [Script Files](#script-files)
+  - [Module Files](#module-files)
+  - [Variables](#variables)
+- [3. Bicep Files](#3-bicep-files)
+  - [File Names](#file-names)
+  - [Parameters and Variables](#parameters-and-variables)
+  - [Resource Symbolic Names](#resource-symbolic-names)
+- [4. Documentation Files](#4-documentation-files)
+  - [Markdown Files](#markdown-files)
+- [5. GitHub Workflow Files](#5-github-workflow-files)
+  - [Workflow Files](#workflow-files)
+  - [Workflow Job Names](#workflow-job-names)
+- [6. Detection Patterns](#6-detection-patterns)
+  - [PowerShell Scripts Not Following Verb-Noun](#powershell-scripts-not-following-verb-noun)
+  - [Bicep Files Not Using Kebab-Case](#bicep-files-not-using-kebab-case)
+  - [Documentation Not Using Kebab-Case](#documentation-not-using-kebab-case)
+  - [Azure Resource Names](#azure-resource-names)
+- [7. Language-Specific Casing Summary](#7-language-specific-casing-summary)
+- [8. Consistency and Typo Detection](#8-consistency-and-typo-detection)
+  - [Environment name consistency](#environment-name-consistency)
+  - [Common spelling mistakes to watch for](#common-spelling-mistakes-to-watch-for)
+  - [Cross-reference validation](#cross-reference-validation)
+- [9. Review Process](#9-review-process)
+  - [Example Findings](#example-findings)
+
+---
+
 This document defines naming standards for all code, infrastructure, and documentation in this repository.
 
 ## Severity Guidelines
