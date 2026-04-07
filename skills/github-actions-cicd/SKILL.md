@@ -44,27 +44,17 @@ Generate a complete workflow with these jobs:
 
 | Job | Needs | Steps |
 |-----|-------|-------|
-| `validate` | — | fmt check, setup-tflint, tflint init + cache, tflint, init -backend=false, validate, `aquasecurity/tfsec-action` (not `run: tfsec .` — tfsec is not pre-installed on runners) |
-| `plan` | validate | init (OIDC + inline backend config), plan → `plan.txt`, read output, find+create-or-update PR comment, upload artifact |
+| `validate` | — | checkout, setup-terraform, `arduino/setup-task`, `task all` (runs fmt, validate, lint, security via the solution's Taskfile) |
+| `plan` | validate | checkout, setup-terraform, cache Terraform plugins, init (OIDC + inline backend config), plan, upload artifact |
 
-**Backend config** — always inline via `-backend-config` flags (not a committed file):
-- Variables (`vars.*`): `TF_BACKEND_RESOURCE_GROUP`, `TF_BACKEND_STORAGE_ACCOUNT` — these are not secrets; using `secrets.*` for a variable silently returns empty
-- Hardcoded: `container_name=tfstate`, `use_azuread_auth=true`
-- Key: `<module-folder-name>/terraform.tfstate`
+**Taskfile requirement** — every solution must have a `Taskfile.yml` with an `all` task that runs `fmt`, `validate`, `lint`, and `security` in order.
 
-**Plan comment** — use `peter-evans/find-comment` + `peter-evans/create-or-update-comment` with `<!-- tf-plan-comment -->` marker.
-
-**Multiline plan output** — capture to file and use the heredoc pattern:
-```yaml
-- name: Read plan output
-  id: plan-output
-  run: |
-    {
-      echo 'CONTENT<<PLAN_EOF'
-      cat plan.txt
-      echo 'PLAN_EOF'
-    } >> "$GITHUB_OUTPUT"
-```
+**Backend config** — always inline via `-backend-config` flags derived from `environment` and `solution` inputs:
+- `resource_group_name=rg-<environment>-platform-terraform-state`
+- `storage_account_name=st<environment>platformtfstate`
+- `container_name=tfstate`
+- `key=<solution>/terraform.tfstate`
+- `use_azuread_auth=true`
 
 ### `terraform-apply.yml` *(only if Q3 is Yes)*
 
@@ -89,8 +79,6 @@ After generating the files, print this for the user:
 | `AZURE_CLIENT_ID` | Managed identity / service principal client ID |
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `TF_BACKEND_RESOURCE_GROUP` | Resource group of the Terraform state storage account |
-| `TF_BACKEND_STORAGE_ACCOUNT` | Name of the Terraform state storage account |
 **Azure federated credentials to configure** (one-time, on the managed identity or service principal):
 
 | Subject | Used by |
@@ -104,7 +92,7 @@ https://api.github.com/repos/<owner>/<repo>/git/ref/tags/vX.Y.Z
 ```
 If the returned `object.type` is `"tag"` (annotated), follow the SHA to `git/tags/<sha>` to get the underlying commit SHA. See [standards/templates/github-actions-best-practices.md](../../standards/templates/github-actions-best-practices.md).
 
-**Reusable workflows:** If generating a reusable workflow (`workflow_call`), the calling job must explicitly grant the permissions the reusable workflow needs (`id-token: write`, `pull-requests: write`). See the reusable workflows section in the standards.
+**Reusable workflows:** If generating a reusable workflow (`workflow_call`), the calling job must explicitly grant the permissions the reusable workflow needs (`id-token: write`). See the reusable workflows section in the standards.
 
 ---
 

@@ -3,18 +3,15 @@ name: _terraform-plan (reusable)
 on:
   workflow_call:
     inputs:
-      working_directory:
-        description: "Path to the Terraform deployment directory (e.g. sandbox)"
+      environment:
+        description: "Short environment code (e.g. sbx, can, liv)"
         type: string
         required: true
-      var_file:
-        description: "Path to the .tfvars file, relative to working_directory (e.g. environments/sbx.tfvars)"
+      solution:
+        description: "Solution name matching folder under infra-as-code/terraform/solutions/ (e.g. sandbox)"
         type: string
         required: true
-      tf_state_key:
-        description: "Backend state key (e.g. sandbox/terraform.tfstate)"
-        type: string
-        required: true
+
 
 jobs:
   validate:
@@ -25,7 +22,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ${{ inputs.working_directory }}
+        working-directory: infra-as-code/terraform/solutions/${{ inputs.solution }}
 
     steps:
       - name: Checkout
@@ -34,46 +31,11 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
 
-      - name: Setup tflint
-        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+      - name: Setup Task
+        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
 
-      - name: Cache tflint plugins
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.tflint.d/plugins
-          key: tflint-${{ runner.os }}-${{ hashFiles('.tflint.hcl') }}
-
-      - name: Configure Terraform plugin cache dir
-        run: mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache
-
-      - name: Cache Terraform plugins
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ runner.temp }}/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
-          restore-keys: ${{ runner.os }}-terraform-
-
-      - name: Terraform fmt check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init (no backend)
-        run: terraform init -backend=false
-        env:
-          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/.terraform.d/plugin-cache
-
-      - name: Terraform validate
-        run: terraform validate
-
-      - name: tflint init
-        run: tflint --init
-
-      - name: tflint
-        run: tflint --recursive
-
-      - name: tfsec
-        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
-        with:
-          working_directory: ${{ inputs.working_directory }}
+      - name: task all
+        run: task all
 
   plan:
     name: Plan
@@ -82,11 +44,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      pull-requests: write
 
     defaults:
       run:
-        working-directory: ${{ inputs.working_directory }}
+        working-directory: infra-as-code/terraform/solutions/${{ inputs.solution }}
 
     env:
       ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
@@ -101,9 +62,6 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
 
-      - name: Configure Terraform plugin cache dir
-        run: mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache
-
       - name: Cache Terraform plugins
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -114,11 +72,12 @@ jobs:
       - name: Terraform init
         timeout-minutes: 5
         run: |
+          mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache
           terraform init \
-            -backend-config="resource_group_name=${{ vars.TF_BACKEND_RESOURCE_GROUP }}" \
-            -backend-config="storage_account_name=${{ vars.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="resource_group_name=rg-${{ inputs.environment }}-platform-terraform-state" \
+            -backend-config="storage_account_name=st${{ inputs.environment }}platformtfstate" \
             -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ inputs.tf_state_key }}" \
+            -backend-config="key=${{ inputs.solution }}/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
         env:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/.terraform.d/plugin-cache
@@ -127,51 +86,14 @@ jobs:
         timeout-minutes: 10
         run: |
           terraform plan \
-            -var-file=${{ inputs.var_file }} \
+            -var-file=environments/${{ inputs.environment }}.tfvars \
             -lock-timeout=5m \
             -out=tfplan \
-            -no-color 2>&1 | tee plan.txt
-
-      - name: Read plan output
-        id: plan-output
-        run: |
-          {
-            echo 'CONTENT<<PLAN_EOF'
-            cat plan.txt
-            echo 'PLAN_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Find existing plan comment
-        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3.1.0
-        id: find-comment
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: "github-actions[bot]"
-          body-includes: "<!-- tf-plan-${{ inputs.working_directory }} -->"
-
-      - name: Create or update plan comment
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
-        with:
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number }}
-          edit-mode: replace
-          body: |
-            <!-- tf-plan-${{ inputs.working_directory }} -->
-            ## Terraform Plan — `${{ inputs.working_directory }}`
-
-            <details><summary>Show plan</summary>
-
-            ```
-            ${{ steps.plan-output.outputs.CONTENT }}
-            ```
-
-            </details>
-
-            > Run ID: ${{ github.run_id }} | Triggered by: @${{ github.actor }}
+            -no-color
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: tfplan-${{ inputs.working_directory }}-${{ github.run_id }}
-          path: ${{ inputs.working_directory }}/tfplan
+          name: tfplan-${{ inputs.solution }}-${{ github.run_id }}
+          path: infra-as-code/terraform/solutions/${{ inputs.solution }}/tfplan
           retention-days: 7
