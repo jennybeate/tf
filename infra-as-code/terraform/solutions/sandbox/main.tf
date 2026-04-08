@@ -5,7 +5,7 @@ resource "azurerm_resource_group" "main" {
 }
 
 module "kubernetes" {
-  source = "../../modules/kubernetes/v1.0.0"
+  source = "../../modules/kubernetes/v2.0.0"
 
   cost_center         = var.cost_center
   environment         = var.environment
