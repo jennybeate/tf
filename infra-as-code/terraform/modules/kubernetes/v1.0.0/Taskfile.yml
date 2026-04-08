@@ -17,11 +17,6 @@ tasks:
     cmds:
       - tflint --recursive
 
-  security:
-    desc: Run tfsec security scan
-    cmds:
-      - tfsec .
-
   test:
     desc: Run Terraform tests
     cmds:

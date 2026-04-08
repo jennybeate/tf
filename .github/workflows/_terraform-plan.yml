@@ -35,7 +35,7 @@ jobs:
         run: task all
 
       - name: tfsec
-        run: tfsec .
+        run: tfsec . --exclude-path .terraform
         continue-on-error: ${{ !contains(fromJSON('["prd","prod","production"]'), inputs.environment) }}
 
   plan:
