@@ -94,7 +94,7 @@ This creates:
 
 ### Azure OIDC — no long-lived secrets
 
-1. Create an **App Registration** in Azure AD.
+1. Create an **App Registration** in Entra ID.
 2. Under **Certificates & secrets → Federated credentials**, add:
    - Entity type: `Pull request` — used by the plan pipeline
    - Entity type: `Branch`, branch `main` — used by an apply pipeline if added later
@@ -105,7 +105,7 @@ This creates:
 | Secret | Value |
 |--------|-------|
 | `AZURE_CLIENT_ID` | App registration client ID |
-| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_TENANT_ID` | Entra ID tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Sandbox subscription ID |
 
 ### Variables (`Settings → Secrets and variables → Actions → Variables`)

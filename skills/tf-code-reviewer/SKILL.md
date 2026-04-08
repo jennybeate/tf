@@ -1,6 +1,7 @@
 ---
 name: tf-code-reviewer
 description: Reviews Terraform (.tf/.tfvars) infrastructure code against team standards. Use when reviewing Terraform files, diffs, or asking about Terraform conventions.
+argument-hint: "Paste the Terraform file, diff, or describe what to review"
 ---
 
 # Terraform Code Reviewer

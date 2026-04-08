@@ -1,5 +1,26 @@
 # Terraform Authoring Guide
 
+## Contents
+
+- [Before you start — AVM check](#before-you-start--avm-check)
+- [File structure](#file-structure)
+  - [Reusable module](#reusable-module----modulesresource-typev100)
+  - [Deployment root](#deployment-root----deploymentsresource-type)
+- [Naming](#naming)
+- [Variables](#variables)
+- [Outputs](#outputs)
+- [Environment separation](#environment-separation)
+- [Tags](#tags)
+- [Block ordering](#block-ordering)
+- [for\_each vs count](#for_each-vs-count)
+- [Remote state](#remote-state)
+- [Secrets and identity](#secrets-and-identity)
+- [Provider selection](#provider-selection)
+- [Idempotency](#idempotency)
+- [Pre-apply checklist](#pre-apply-checklist)
+
+---
+
 This guide is to help you define how to write Terraform modules for Azure at Nimtech. It is the source of truth for generative work — what to do and how to do it. For review checks and what will be flagged, see `terraform-standards.md`.
 
 ## Before you start — AVM check
@@ -118,8 +139,8 @@ variable "environment" {
   type        = string
   description = "Deployment environment."
   validation {
-    condition     = contains(["dev", "tst", "uat", "stg", "prd"], var.environment)
-    error_message = "Must be one of: dev, tst, uat, stg, prd."
+    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prd"], var.environment)
+    error_message = "Must be one of: can, liv, dev, sbx, tst, uat, stg, prd."
   }
 }
 ```
@@ -176,10 +197,12 @@ Build the tag map once in `locals.tf` and reference `local.common_tags` in every
 
 Within each resource or module block, write arguments in this order:
 
-1. Meta-arguments first: `count`, `for_each`, `provider`, `depends_on`
-2. Resource-specific arguments
-3. Nested blocks
-4. `lifecycle` block last
+1. Meta-arguments first (in this order): `provider`, `count`, `for_each`
+2. Required arguments (alphabetical)
+3. Optional arguments (alphabetical)
+4. Required nested blocks
+5. Optional nested blocks
+6. Bottom meta-arguments: `depends_on`, `lifecycle`
 
 ## for_each vs count
 

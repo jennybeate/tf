@@ -85,7 +85,7 @@ After generating the files, print this for the user:
 | Secret | Value |
 |--------|-------|
 | `AZURE_CLIENT_ID` | Managed identity / service principal client ID |
-| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_TENANT_ID` | Entra ID tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 **Azure federated credentials to configure** (one-time, on the managed identity or service principal):
 

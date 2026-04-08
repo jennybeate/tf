@@ -1,5 +1,38 @@
 # Terraform Review Standards
 
+## Contents
+
+- [Pre-review commands](#pre-review-commands)
+- [Pre-review checklist](#pre-review-checklist)
+- [Formatting](#formatting)
+  - [Indentation and alignment](#indentation-and-alignment)
+  - [`ignore_changes` syntax](#ignore_changes-syntax)
+- [Module structure](#module-structure)
+  - [Breaking change controls](#breaking-change-controls)
+- [AVM version checks](#avm-version-checks)
+  - [AVM module block ordering](#avm-module-block-ordering)
+- [State management](#state-management)
+- [Version constraints](#version-constraints)
+  - [Terraform version](#terraform-version)
+  - [Provider versions](#provider-versions)
+- [Variable quality](#variable-quality)
+- [Locals](#locals)
+- [Security](#security)
+- [Block ordering](#block-ordering)
+- [Naming and tagging](#naming-and-tagging)
+- [Environment separation](#environment-separation)
+- [Code quality](#code-quality)
+  - [`for_each` vs `count`](#for_each-vs-count)
+  - [Dynamic blocks for optional nested objects](#dynamic-blocks-for-optional-nested-objects)
+  - [Null-safe optional objects](#null-safe-optional-objects)
+- [Output hygiene](#output-hygiene)
+- [Provider selection](#provider-selection)
+- [Testing](#testing)
+- [Nimtech patterns](#nimtech-patterns)
+- [References](#references)
+
+---
+
 This document is the single source of truth for Terraform authoring and review at Nimtech. It combines **HashiCorp's official Terraform style guide** with **team-specific patterns**. Both sets of standards apply. Where team patterns add requirements beyond HashiCorp defaults (tagging, state, naming), apply both — the team patterns are additive, not contradictory.
 
 For review checks and what will be flagged, this file is authoritative. For generative work (scaffolding new modules), see `terraform-authoring-guide.md`.
