@@ -1,9 +1,3 @@
-resource "azurerm_user_assigned_identity" "main" {
-  name                = local.identity_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  tags                = local.common_tags
-}
 
 module "aks" {
   source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
@@ -11,13 +5,13 @@ module "aks" {
 
   name      = local.aks_name
   location  = var.location
-  parent_id = data.azurerm_resource_group.main.id
-
+  parent_id = var.resource_group_id
+  
   kubernetes_version = var.kubernetes_version
   tags               = local.common_tags
 
   managed_identities = {
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.main.id]
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.identity.id]
   }
 
   default_agent_pool = {

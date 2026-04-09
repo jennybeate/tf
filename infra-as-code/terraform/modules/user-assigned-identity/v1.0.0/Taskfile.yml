@@ -17,9 +17,16 @@ tasks:
     cmds:
       - tflint --recursive
 
+  test:
+    desc: Run Terraform native tests
+    cmds:
+      - terraform init -backend=false
+      - terraform test
+
   all:
-    desc: Run fmt, validate, and lint
+    desc: Run fmt, validate, lint, and test
     cmds:
       - task: fmt
       - task: validate
       - task: lint
+      - task: test
