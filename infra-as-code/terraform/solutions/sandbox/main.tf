@@ -5,9 +5,9 @@ resource "azurerm_resource_group" "main" {
 }
 
 resource "azurerm_user_assigned_identity" "identity" {
-  location            = azurerm_resource_group.this.location
+  location            = local.location
   name                = local.identity_name
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = azurerm_resource_group.main.name
 }
 
 module "kubernetes" {
