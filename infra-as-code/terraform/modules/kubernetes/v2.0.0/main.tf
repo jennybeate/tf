@@ -28,4 +28,12 @@ module "aks" {
     max_count            = var.node_count_max
     os_disk_size_gb      = var.node_os_disk_size_gb
   }
+
+  # Workaround: AVM 0.5.3 validation condition does not short-circuit correctly
+  # when this variable is null in Terraform 1.11.x, causing validate to fail.
+  # Setting enabled = false is functionally equivalent to null (addon disabled).
+  addon_profile_ingress_application_gateway = {
+    enabled = false
+    config  = null
+  }
 }
