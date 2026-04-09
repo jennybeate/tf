@@ -5,13 +5,13 @@ module "aks" {
 
   name      = local.aks_name
   location  = var.location
-  parent_id = data.azurerm_resource_group.existing.id
+  parent_id = data.azurerm_resource_group.resource_group.id
   
   kubernetes_version = var.kubernetes_version
   tags               = local.common_tags
 
   managed_identities = {
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.uai.id]
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.identity.id]
   }
 
   default_agent_pool = {
