@@ -17,7 +17,7 @@ module "aks" {
   default_agent_pool = {
     name                 = "system"
     vm_size              = var.node_vm_size
-    auto_scaling_enabled = true
+    enable_auto_scaling  = true
     min_count            = var.node_count_min
     max_count            = var.node_count_max
     os_disk_size_gb      = var.node_os_disk_size_gb
