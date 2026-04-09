@@ -71,3 +71,8 @@ variable "resource_group_name" {
   type        = string
   description = "Name of the resource group in which to deploy resources."
 }
+
+variable "resource_group_id" {
+  type        = string
+  description = "Resource ID of the resource group in which to deploy resources."
+}

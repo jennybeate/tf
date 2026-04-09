@@ -5,7 +5,7 @@ module "aks" {
 
   name      = local.aks_name
   location  = var.location
-  parent_id = data.azurerm_resource_group.resource_group.id
+  parent_id = var.resource_group_id
   
   kubernetes_version = var.kubernetes_version
   tags               = local.common_tags
