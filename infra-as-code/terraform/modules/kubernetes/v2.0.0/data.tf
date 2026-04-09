@@ -4,6 +4,6 @@ data "azurerm_resource_group" "existing" {
 
 resource "azurerm_user_assigned_identity" "uai" {
   resource_group_name = "${data.azurerm_resource_group.main.name}"
-  location            = locals.location
-  name = locals.identity_name
+  location            = local.location
+  name = local.identity_name
 }

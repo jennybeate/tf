@@ -1,14 +1,11 @@
-resource "azurerm_resource_group" "this" {
-  location = locals.location
-  name     = module.naming.resource_group.name_unique
-}
+
 
 module "aks" {
   source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
   version = "0.5.3"
 
   name      = local.aks_name
-  location  = this.location
+  location  = var.location
   parent_id = data.azurerm_resource_group.existing.id
   
   kubernetes_version = var.kubernetes_version
