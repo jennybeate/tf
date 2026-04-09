@@ -18,12 +18,6 @@ variable "kubernetes_version" {
   default     = null
 }
 
-variable "location" {
-  type        = string
-  description = "Azure region for resource deployment."
-  default     = "norwayeast"
-}
-
 variable "node_count_max" {
   type        = number
   description = "Maximum number of nodes in the AKS default node pool."
@@ -57,7 +51,4 @@ variable "replication_type" {
   }
 }
 
-variable "solution" {
-  type        = string
-  description = "Solution or workload name. Used in resource naming. Keep short — storage account names are capped at 24 characters."
-}
+

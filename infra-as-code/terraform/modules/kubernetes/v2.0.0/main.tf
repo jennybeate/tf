@@ -1,8 +1,6 @@
-resource "azurerm_user_assigned_identity" "main" {
-  name                = local.identity_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  tags                = local.common_tags
+resource "azurerm_resource_group" "this" {
+  location = locals.location
+  name     = module.naming.resource_group.name_unique
 }
 
 module "aks" {
@@ -10,14 +8,14 @@ module "aks" {
   version = "0.5.3"
 
   name      = local.aks_name
-  location  = var.location
-  parent_id = data.azurerm_resource_group.main.id
-
+  location  = this.location
+  parent_id = data.azurerm_resource_group.existing.id
+  
   kubernetes_version = var.kubernetes_version
   tags               = local.common_tags
 
   managed_identities = {
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.main.id]
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.uai.id]
   }
 
   default_agent_pool = {
