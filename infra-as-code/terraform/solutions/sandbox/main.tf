@@ -1,6 +1,6 @@
 resource "azurerm_resource_group" "main" {
   name     = local.resource_group_name
-  location = locals.location
+  location = local.location
   tags     = local.common_tags
 }
 
@@ -23,7 +23,7 @@ module "kubernetes" {
   node_count_min      = var.node_count_min
   node_vm_size        = var.node_vm_size
   owner               = var.owner
-  solution            = locals.solution
+  solution            = local.solution
 }
 
 module "storage_account" {
@@ -35,5 +35,5 @@ module "storage_account" {
   owner               = var.owner
   replication_type    = var.replication_type
   resource_group_name = azurerm_resource_group.main.name
-  solution            = locals.solution
+  solution            = local.solution
 }
