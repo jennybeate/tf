@@ -27,10 +27,10 @@ jobs:
         working-directory: infra-as-code/terraform/solutions/${{ inputs.solution }}
 
     env:
-      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      ARM_USE_OIDC:        "true"
+      ARM_USE_OIDC: "true"
 
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install tools
-        run: bash "$GITHUB_WORKSPACE/scripts/install-tools.sh"
+        run: bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
 
       - name: Configure Terraform plugin cache dir
         run: mkdir -p ${{ runner.temp }}/.terraform.d/plugin-cache

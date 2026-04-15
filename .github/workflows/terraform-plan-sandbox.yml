@@ -6,6 +6,7 @@ on:
     paths:
       - "infra-as-code/terraform/solutions/sandbox/**"
       - "infra-as-code/terraform/modules/kubernetes/v2.0.0/**"
+      - ".github/workflows/terraform-plan-sandbox.yml"
   workflow_dispatch:
 
 concurrency:
