@@ -62,11 +62,6 @@ variable "solution" {
   description = "Solution or workload name. Used in resource naming and tags."
 }
 
-variable "user_assigned_identity_id" {
-  type        = string
-  description = "Resource ID of the user-assigned managed identity to attach to the AKS cluster."
-}
-
 variable "resource_group_name" {
   type        = string
   description = "Name of the resource group in which to deploy resources."

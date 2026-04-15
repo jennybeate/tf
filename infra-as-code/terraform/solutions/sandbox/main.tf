@@ -4,27 +4,20 @@ resource "azurerm_resource_group" "main" {
   tags     = local.common_tags
 }
 
-resource "azurerm_user_assigned_identity" "identity" {
-  location            = local.location
-  name                = local.identity_name
-  resource_group_name = azurerm_resource_group.main.name
-}
-
 module "kubernetes" {
   source = "../../modules/kubernetes/v2.0.0"
 
-  resource_group_name       = azurerm_resource_group.main.name
-  resource_group_id         = azurerm_resource_group.main.id
-  cost_center               = var.cost_center
-  environment               = var.environment
-  user_assigned_identity_id = azurerm_user_assigned_identity.identity.id
-  kubernetes_version        = var.kubernetes_version
-  location                  = azurerm_resource_group.main.location
-  node_count_max            = var.node_count_max
-  node_count_min            = var.node_count_min
-  node_vm_size              = var.node_vm_size
-  owner                     = var.owner
-  solution                  = local.solution
+  resource_group_name = azurerm_resource_group.main.name
+  resource_group_id   = azurerm_resource_group.main.id
+  cost_center         = var.cost_center
+  environment         = var.environment
+  kubernetes_version  = var.kubernetes_version
+  location            = azurerm_resource_group.main.location
+  node_count_max      = var.node_count_max
+  node_count_min      = var.node_count_min
+  node_vm_size        = var.node_vm_size
+  owner               = var.owner
+  solution            = local.solution
 }
 
 module "storage_account" {

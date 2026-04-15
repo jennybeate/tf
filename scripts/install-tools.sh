@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TERRAFORM_VERSION="1.11.3"
 TFLINT_VERSION="0.55.0"
 TASK_VERSION="3.43.3"
 TFSEC_VERSION="1.28.13"
@@ -13,14 +12,6 @@ case "$ARCH" in
 esac
 
 BIN_DIR="${BIN_DIR:-/usr/local/bin}"
-
-install_terraform() {
-  echo "Installing Terraform ${TERRAFORM_VERSION}..."
-  local url="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip"
-  curl -fsSL "$url" -o /tmp/terraform.zip
-  unzip -o /tmp/terraform.zip -d "$BIN_DIR"
-  rm /tmp/terraform.zip
-}
 
 install_tflint() {
   echo "Installing tflint ${TFLINT_VERSION}..."
@@ -43,14 +34,12 @@ install_tfsec() {
   chmod +x "$BIN_DIR/tfsec"
 }
 
-install_terraform
 install_tflint
 install_task
 install_tfsec
 
 echo ""
 echo "Installed versions:"
-terraform -version
 tflint --version
 task --version
 tfsec --version
