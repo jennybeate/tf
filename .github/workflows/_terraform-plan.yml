@@ -33,7 +33,7 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install tools
-        run: bash "$GITHUB_WORKSPACE/scripts/install-tools.sh"
+        run: bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
 
       - name: task all
         run: task all
