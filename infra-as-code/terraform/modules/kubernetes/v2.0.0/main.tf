@@ -1,8 +1,11 @@
-resource "azurerm_user_assigned_identity" "identity" {
-  resource_group_name = var.resource_group_name
-  location            = var.location
+module "user_assigned_identity" {
+  source  = "Azure/avm-res-managedidentity-userassignedidentity/azurerm"
   name                = local.identity_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = local.common_tags
 }
+
 
 module "aks" {
   source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
