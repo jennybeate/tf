@@ -41,6 +41,7 @@ Ask the following questions **one at a time**:
 
 After collecting D-Q1 and D-Q2, confirm your understanding before generating.
 
+
 ---
 
 ## Step 1B — New-module mode
