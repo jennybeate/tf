@@ -6,7 +6,7 @@ param location string = 'norwayeast'
 @description('Optional. Storage Account Sku Name. Defaults to Standard LRS in this module, while AVM defaults would default to Standard_GRS')
 param skuName string = 'Standard_LRS' 
 
-@allowed(['sbx', 'liv', 'can', 'dev', 'prd', 'tst', 'stg', 'uat'])
+@allowed(['sbx', 'liv', 'can', 'dev', 'prod', 'tst', 'stg', 'uat'])
 @description('Optional. Environment. Defaults to sbx')
 param environment string = 'sbx'
 

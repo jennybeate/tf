@@ -12,7 +12,6 @@ on:
         type: string
         required: true
 
-
 jobs:
   validate:
     name: Validate
@@ -41,7 +40,7 @@ jobs:
 
       - name: tfsec
         run: tfsec . --exclude-path .terraform
-        continue-on-error: ${{ !contains(fromJSON('["prd","prod","production"]'), inputs.environment) }}
+        continue-on-error: ${{ !contains(fromJSON('["prod","prod","production"]'), inputs.environment) }}
 
   plan:
     name: Plan
@@ -56,10 +55,10 @@ jobs:
         working-directory: infra-as-code/terraform/solutions/${{ inputs.solution }}
 
     env:
-      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      ARM_USE_OIDC:        "true"
+      ARM_USE_OIDC: "true"
 
     steps:
       - name: Checkout

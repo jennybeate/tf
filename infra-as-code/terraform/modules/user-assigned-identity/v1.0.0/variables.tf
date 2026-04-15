@@ -13,8 +13,8 @@ variable "environment" {
   type        = string
   description = "Deployment environment. Used in resource names and tags."
   validation {
-    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prd"], var.environment)
-    error_message = "Must be one of: can, liv, dev, sbx, tst, uat, stg, prd."
+    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prod"], var.environment)
+    error_message = "Must be one of: can, liv, dev, sbx, test, uat, stage, prod."
   }
 }
 
