@@ -41,14 +41,8 @@ variable "owner" {
   description = "Team or individual responsible for the resources."
 }
 
+
 variable "replication_type" {
-  type        = string
-  description = "Storage account replication type."
-  default     = "LRS"
-  validation {
-    condition     = contains(["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"], var.replication_type)
-    error_message = "Must be one of: LRS, GRS, RAGRS, ZRS, GZRS, RAGZRS."
-  }
+  type = string
+  default = "LRS"
 }
-
-
