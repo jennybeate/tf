@@ -12,7 +12,6 @@ on:
         type: string
         required: true
 
-
 jobs:
   validate:
     name: Validate
@@ -34,14 +33,14 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install tools
-        run: bash "$GITHUB_WORKSPACE/scripts/install-tools.sh"
+        run: bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
 
       - name: task all
         run: task all
 
       - name: tfsec
         run: tfsec . --exclude-path .terraform
-        continue-on-error: ${{ !contains(fromJSON('["prd","prod","production"]'), inputs.environment) }}
+        continue-on-error: ${{ !contains(fromJSON('["prod","prod","production"]'), inputs.environment) }}
 
   plan:
     name: Plan
@@ -56,10 +55,10 @@ jobs:
         working-directory: infra-as-code/terraform/solutions/${{ inputs.solution }}
 
     env:
-      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      ARM_USE_OIDC:        "true"
+      ARM_USE_OIDC: "true"
 
     steps:
       - name: Checkout
@@ -71,7 +70,7 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install tools
-        run: bash "$GITHUB_WORKSPACE/scripts/install-tools.sh"
+        run: bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
 
       - name: Cache Terraform plugins
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4

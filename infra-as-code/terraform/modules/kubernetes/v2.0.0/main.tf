@@ -1,8 +1,11 @@
-resource "azurerm_user_assigned_identity" "identity" {
-  resource_group_name = var.resource_group_name
-  location            = var.location
+module "user_assigned_identity" {
+  source  = "Azure/avm-res-managedidentity-userassignedidentity/azurerm"
   name                = local.identity_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = local.common_tags
 }
+
 
 module "aks" {
   source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
@@ -16,7 +19,7 @@ module "aks" {
   tags               = local.common_tags
 
   managed_identities = {
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.identity.id]
+    user_assigned_resource_ids = [module.user_assigned_identity.resource_id]
   }
 
   default_agent_pool = {

@@ -126,10 +126,12 @@ srch     - AI Search
 ```
 
 **Environment abbreviations** (from `.canary.env` / `.env`):
+
 - `can` — canary environment
 - `liv` — live/production environment
 
 These are the ONLY valid environment tokens in resource names. Common mistakes:
+
 - ❌ `canary` (too long — use `can`)
 - ❌ `live` (wrong — use `liv`)
 - ❌ `canaray`, `canayr` (typos)
@@ -138,6 +140,7 @@ These are the ONLY valid environment tokens in resource names. Common mistakes:
 Mixing `can`/`canary` or `liv`/`live` within the same solution is a **[BLOCKER]**.
 
 **Examples**:
+
 - ✅ `rg-can-vending` (correct — canary)
 - ✅ `rg-liv-platform` (correct — live)
 - ✅ `stcanvending` (storage account, correct — no dashes allowed)
@@ -151,6 +154,7 @@ Mixing `can`/`canary` or `liv`/`live` within the same solution is a **[BLOCKER]*
 ### Storage Account Special Rules
 
 Storage accounts have Azure platform constraints:
+
 - 3-24 characters
 - Lowercase letters and numbers only (no dashes, no uppercase)
 - Must be globally unique
@@ -158,6 +162,7 @@ Storage accounts have Azure platform constraints:
 **Format**: `st{environment}{purpose}` (no separators)
 
 Examples:
+
 - ✅ `stcanvending` (correct — canary)
 - ✅ `stlivplatform` (correct — live)
 - ❌ `st-can-vending` (contains dashes) → [BLOCKER]
@@ -175,6 +180,7 @@ Examples:
 **Approved verbs**: Get, Set, New, Remove, Add, Update, Test, Invoke, Start, Stop, Deploy, Register, Unregister
 
 **Examples**:
+
 - ✅ `Deploy-Infrastructure.ps1` (correct)
 - ✅ `Get-ResourceGroup.ps1` (correct)
 - ❌ `deploy-infrastructure.ps1` (lowercase) → [MAJOR]
@@ -187,30 +193,35 @@ Examples:
 **Format**: `ModuleName.psm1` (PascalCase)
 
 Examples:
+
 - ✅ `VendingHelpers.psm1` (correct)
 - ❌ `vending-helpers.psm1` (kebab-case) → [MAJOR]
 
 ### Variables
 
 **Local variables**: `$camelCase`
+
 ```powershell
 $resourceGroup = "rg-can-app"
 $storageAccount = "stcanapp"
 ```
 
 **Script-scope variables**: `$PascalCase`
+
 ```powershell
 $script:ConfigPath = "./config.json"
 $script:DefaultRegion = "norwayeast"
 ```
 
 **Environment variables**: `$env:SCREAMING_SNAKE_CASE`
+
 ```powershell
 $apiKey = $env:API_KEY
 $dbPassword = $env:DB_PASSWORD
 ```
 
 **Examples**:
+
 - ✅ `$resourceGroupName` (local, camelCase) → correct
 - ✅ `$script:DefaultLocation` (script-scope, PascalCase) → correct
 - ❌ `$ResourceGroupName` (local with PascalCase) → [MINOR]
@@ -225,6 +236,7 @@ $dbPassword = $env:DB_PASSWORD
 **Format**: `kebab-case.bicep`
 
 **Examples**:
+
 - ✅ `resource-group.bicep` (correct)
 - ✅ `storage-account.bicep` (correct)
 - ❌ `ResourceGroup.bicep` (PascalCase) → [MAJOR]
@@ -244,6 +256,7 @@ var location = 'norwayeast'
 ```
 
 **Examples**:
+
 - ✅ `param storageAccountName string` (camelCase) → correct
 - ❌ `param StorageAccountName string` (PascalCase) → [MINOR]
 - ❌ `param storage_account_name string` (snake_case) → [MAJOR]
@@ -273,6 +286,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 **Format**: `kebab-case.md`
 
 **Examples**:
+
 - ✅ `coding-guidelines.md` (correct)
 - ✅ `pipeline-design.md` (correct)
 - ✅ `README.md` (exception - uppercase by convention) → correct
@@ -291,6 +305,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 **Naming pattern**: `{action}-{target}-{environment}.yml`
 
 **Examples**:
+
 - ✅ `deploy-infrastructure-canary.yml` (correct)
 - ✅ `validate-bicep-pr.yml` (correct)
 - ❌ `DeployInfrastructureCanary.yml` (PascalCase) → [MAJOR]
@@ -310,6 +325,7 @@ jobs:
 ```
 
 **Examples**:
+
 - ✅ `validate-bicep:` (correct)
 - ✅ `deploy-infrastructure:` (correct)
 - ❌ `Validate-Bicep:` (PascalCase) → [MINOR]
@@ -322,6 +338,7 @@ jobs:
 Use these patterns to detect naming violations:
 
 ### PowerShell Scripts Not Following Verb-Noun
+
 ```regex
 # Files matching these patterns are violations:
 ^[a-z].*\.ps1$           # Lowercase start (should be PascalCase)
@@ -330,6 +347,7 @@ Use these patterns to detect naming violations:
 ```
 
 ### Bicep Files Not Using Kebab-Case
+
 ```regex
 # Files matching these patterns are violations:
 ^[A-Z].*\.bicep$         # Starts with uppercase (should be lowercase)
@@ -338,6 +356,7 @@ Use these patterns to detect naming violations:
 ```
 
 ### Documentation Not Using Kebab-Case
+
 ```regex
 # Files matching these patterns are violations (except README.md):
 ^[A-Z_].*\.md$           # SCREAMING_SNAKE_CASE or starts with uppercase
@@ -346,6 +365,7 @@ Use these patterns to detect naming violations:
 ```
 
 ### Azure Resource Names
+
 ```regex
 # Contains underscore instead of dash:
 .*_.*
@@ -365,34 +385,40 @@ Use these patterns to detect naming violations:
 
 ## 7. Language-Specific Casing Summary
 
-| Language/Type | File Names | Variables/Params | Resources |
-|---------------|------------|------------------|-----------|
-| PowerShell    | PascalCase (Verb-Noun.ps1) | $camelCase (local) | - |
-| Bicep         | kebab-case.bicep | camelCase | camelCase |
-| Markdown      | kebab-case.md | - | - |
-| YAML/Workflows| kebab-case.yml | kebab-case (jobs) | - |
-| Azure Resources| kebab-case | - | {type}-{env}-{purpose} |
+| Language/Type   | File Names                 | Variables/Params   | Resources              |
+| --------------- | -------------------------- | ------------------ | ---------------------- |
+| PowerShell      | PascalCase (Verb-Noun.ps1) | $camelCase (local) | -                      |
+| Bicep           | kebab-case.bicep           | camelCase          | camelCase              |
+| Markdown        | kebab-case.md              | -                  | -                      |
+| YAML/Workflows  | kebab-case.yml             | kebab-case (jobs)  | -                      |
+| Azure Resources | kebab-case                 | -                  | {type}-{env}-{purpose} |
 
 ---
 
 ## 8. Consistency and Typo Detection
 
 ### Environment name consistency
+
 All references to environments must use the correct abbreviation consistently:
+
 - **Canary**: `can` (in resource names, file names, variables)
 - **Live**: `liv` (in resource names, file names, variables)
-- **Prep/PRD suffixes**: `prep` and `prd` for sub-environments (e.g., `sql-can-prep-db-services`)
+- **Prep/prod suffixes**: `prep` and `prod` for sub-environments (e.g., `sql-can-prep-db-services`)
 
 Flag as **[BLOCKER]** if:
+
 - Different environment tokens are mixed within the same solution (e.g., `can` in one resource and `canary` in another)
 - A typo in an environment name could cause deployment to the wrong environment
 
 Flag as **[MAJOR]** if:
+
 - Wrong abbreviation used (`canary` instead of `can`, `live` instead of `liv`)
 - Typo in environment name that doesn't match any known value
 
 ### Common spelling mistakes to watch for
+
 Reviewers should flag these near-miss patterns:
+
 - `canaray`, `canayr`, `canry` → should be `can`
 - `live`, `lve`, `ive`, `lv` → should be `liv`
 - `Resouces`, `Resorces` → `Resources` (common typo in script/file names)
@@ -401,7 +427,9 @@ Reviewers should flag these near-miss patterns:
 - `Deploymnet` → `Deployment`
 
 ### Cross-reference validation
+
 When reviewing, check that:
+
 - Resource names in code match the pattern from `.canary.env` / `.env` (e.g., `rg-can-` prefix for canary resources)
 - Variable names referencing environments use the correct token (`can` / `liv`, not `canary` / `live`)
 - File references in workflows match actual file names exactly (case-sensitive)
@@ -418,6 +446,7 @@ When reviewing naming conventions:
 4. **Review symbolic names** (Bicep resources, workflow jobs)
 
 For each violation, provide:
+
 - **Where**: Exact file name or line number
 - **Why**: Which convention is violated
 - **Fix**: Exact rename command or code change

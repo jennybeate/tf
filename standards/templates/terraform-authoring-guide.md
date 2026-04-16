@@ -12,7 +12,7 @@
 - [Environment separation](#environment-separation)
 - [Tags](#tags)
 - [Block ordering](#block-ordering)
-- [for\_each vs count](#for_each-vs-count)
+- [for_each vs count](#for_each-vs-count)
 - [Remote state](#remote-state)
 - [Secrets and identity](#secrets-and-identity)
 - [Provider selection](#provider-selection)
@@ -28,6 +28,7 @@ This guide is to help you define how to write Terraform modules for Azure at Nim
 **Prefer Azure Verified Modules (AVM) over custom implementations for standard Azure resources: AKS, Key Vault, networking, and identity.**
 
 Check the AVM catalogue before writing any resources. Only proceed with a custom module if:
+
 - No AVM module exists for the resource type, or
 - You have documented justification (add a comment or README explaining why)
 
@@ -56,27 +57,27 @@ Every Terraform codebase has two distinct layers with different responsibilities
 
 ### Reusable module — `modules/<resource-type>/v1.0.0/`
 
-| File | Purpose |
-|---|---|
+| File           | Purpose                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------- |
 | `terraform.tf` | `required_version` and `required_providers` only — no provider config, no backend block |
-| `main.tf` | Resources and data sources in dependency order |
-| `data.tf` | Data sources only — omit if none |
-| `variables.tf` | Input variable declarations — alphabetical |
-| `outputs.tf` | Output declarations — alphabetical |
-| `locals.tf` | Local values used to avoid repetition and construct names |
+| `main.tf`      | Resources and data sources in dependency order                                          |
+| `data.tf`      | Data sources only — omit if none                                                        |
+| `variables.tf` | Input variable declarations — alphabetical                                              |
+| `outputs.tf`   | Output declarations — alphabetical                                                      |
+| `locals.tf`    | Local values used to avoid repetition and construct names                               |
 
 **`providers.tf` does not belong in a module.** Provider blocks inside modules are forbidden — the calling deployment root owns provider configuration. The module only declares `required_providers` in `terraform.tf` so Terraform knows what provider it depends on.
 
 ### Deployment root — `deployments/<resource-type>/`
 
-| File | Purpose |
-|---|---|
-| `terraform.tf` | `required_version`, `required_providers`, and `backend "azurerm" {}` |
-| `providers.tf` | Provider configurations (`provider "azurerm" { features { ... } }`) |
-| `main.tf` | `module` block(s) calling the reusable module, passing all variables through |
-| `variables.tf` | Input variables — mirrors the module's variables |
-| `outputs.tf` | Re-exposes module outputs via `module.<name>.<output>` |
-| `environments/<env>.tfvars` | Environment-specific values — structural only, no secrets |
+| File                        | Purpose                                                                      |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `terraform.tf`              | `required_version`, `required_providers`, and `backend "azurerm" {}`         |
+| `providers.tf`              | Provider configurations (`provider "azurerm" { features { ... } }`)          |
+| `main.tf`                   | `module` block(s) calling the reusable module, passing all variables through |
+| `variables.tf`              | Input variables — mirrors the module's variables                             |
+| `outputs.tf`                | Re-exposes module outputs via `module.<name>.<output>`                       |
+| `environments/<env>.tfvars` | Environment-specific values — structural only, no secrets                    |
 
 See `sandbox/` in this repo as a reference deployment root.
 
@@ -139,8 +140,8 @@ variable "environment" {
   type        = string
   description = "Deployment environment."
   validation {
-    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prd"], var.environment)
-    error_message = "Must be one of: can, liv, dev, sbx, tst, uat, stg, prd."
+    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prod"], var.environment)
+    error_message = "Must be one of: can, liv, dev, sbx, test, uat, stage, prod."
   }
 }
 ```
@@ -184,12 +185,12 @@ Run with: `terraform plan -var-file="environments/dev.tfvars"`
 
 Every resource that supports tags must receive at minimum:
 
-| Tag | Source |
-|---|---|
-| `costCenter` | `var.cost_center` |
+| Tag           | Source            |
+| ------------- | ----------------- |
+| `costCenter`  | `var.cost_center` |
 | `environment` | `var.environment` |
-| `owner` | `var.owner` |
-| `solution` | `var.solution` |
+| `owner`       | `var.owner`       |
+| `solution`    | `var.solution`    |
 
 Build the tag map once in `locals.tf` and reference `local.common_tags` in every resource. `costCenter` and `owner` belong in tags only — they do not appear in resource names.
 

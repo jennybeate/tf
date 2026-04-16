@@ -119,14 +119,14 @@ lifecycle {
 
 Standard file layout (HashiCorp convention):
 
-| File | Purpose |
-|---|---|
+| File           | Purpose                                                                         |
+| -------------- | ------------------------------------------------------------------------------- |
 | `terraform.tf` | Terraform version and required providers (`versions.tf` is an acceptable alias) |
-| `providers.tf` | Provider configurations |
-| `main.tf` | Primary resources and data sources |
-| `variables.tf` | Input variable declarations (alphabetical) |
-| `outputs.tf` | Output value declarations (alphabetical) |
-| `locals.tf` | Local value declarations |
+| `providers.tf` | Provider configurations                                                         |
+| `main.tf`      | Primary resources and data sources                                              |
+| `variables.tf` | Input variable declarations (alphabetical)                                      |
+| `outputs.tf`   | Output value declarations (alphabetical)                                        |
+| `locals.tf`    | Local value declarations                                                        |
 
 - Is the module self-contained with `main.tf`, `variables.tf`, `outputs.tf`?
 - Are locals used to avoid repetition (`locals.tf`)?
@@ -235,10 +235,10 @@ terraform {
 
 All providers in `required_providers` MUST specify both `source` and `version` with `~> #.#` (pessimistic operator). Azure providers and their supported constraints:
 
-| Provider | Required constraint |
-|---|---|
-| `hashicorp/azurerm` | `~> 4.0` |
-| `Azure/azapi` | `~> 2.0` |
+| Provider            | Required constraint |
+| ------------------- | ------------------- |
+| `hashicorp/azurerm` | `~> 4.0`            |
+| `Azure/azapi`       | `~> 2.0`            |
 
 ```hcl
 terraform {
@@ -287,8 +287,8 @@ variable "environment" {
   type        = string
   description = "Deployment environment"
   validation {
-    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prd"], var.environment)
-    error_message = "Must be one of: can, liv, dev, sbx, tst, uat, stg, prd."
+    condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prod"], var.environment)
+    error_message = "Must be one of: can, liv, dev, sbx, test, uat, stage, prod."
   }
 }
 ```
@@ -429,7 +429,7 @@ Use one `terraform.tfvars` file per environment, committed to Git. These files c
 environments/
   dev.tfvars
   stg.tfvars
-  prd.tfvars
+  prod.tfvars
 ```
 
 ```hcl

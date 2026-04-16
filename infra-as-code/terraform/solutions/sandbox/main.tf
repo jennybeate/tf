@@ -21,8 +21,7 @@ module "kubernetes" {
 }
 
 module "storage_account" {
-  source = "../../modules/storage-account"
-
+  source              = "../../modules/storage-account"
   cost_center         = var.cost_center
   environment         = var.environment
   location            = azurerm_resource_group.main.location

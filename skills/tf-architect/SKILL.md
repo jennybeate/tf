@@ -24,23 +24,26 @@ Use this path when the user wants to wire existing modules into a new solution (
 Ask the following questions **one at a time**:
 
 **D-Q1**
+
 > What environments do you need a `tfvars` file for?
+>
 > - A) `dev`
 > - B) `can`
 > - C) `sbx`
 > - D) Other (describe)
 >
-> *(multi-select — you can pick more than one)*
+> _(multi-select — you can pick more than one)_
 
 **D-Q2**
+
 > Do the existing modules cover all required functionality, or is new functionality needed?
+>
 > - A) Existing modules are sufficient — generate the deployment root as-is
 > - B) New functionality is needed — describe what is missing
 >
 > If B: collect the description, then proceed through **Step 1B** to scaffold a new module version (e.g. `v2.0.0`) before continuing to generate the deployment root.
 
 After collecting D-Q1 and D-Q2, confirm your understanding before generating.
-
 
 ---
 
@@ -55,38 +58,48 @@ Before searching for context, if the user has not already described what they ne
 Ask the following questions **one at a time** — present the question with its labeled options, wait for the user's answer, then move to the next. Do not show multiple questions at once.
 
 **Q1**
+
 > Will `environment` and `solution` be the two variables that drive resource naming and tags — or do you need additional variables in the name?
+>
 > - A) Yes — `environment` and `solution` are sufficient
 > - B) No — I need additional variables (describe)
 
 **Q2**
+
 > What environments do you need a `tfvars` file for?
+>
 > - A) `dev`
 > - B) `can`
 > - C) `sbx`
 > - D) Other (describe)
 >
-> *(multi-select — you can pick more than one)*
+> _(multi-select — you can pick more than one)_
 
 **Q3**
+
 > Do you want to follow company naming standards for resources, variables, and files?
+>
 > - A) Yes
 > - B) No
 
 **Q4**
+
 > Do you want to use module versioning?
+>
 > - A) Yes — scaffold inside a `v1.0.0/` subfolder
 > - B) No — place files directly in the module folder
 
 **Q5**
+
 > Which capabilities should the module support?
+>
 > - A) Private endpoint
 > - B) Blob soft delete + versioning
 > - C) Lifecycle management
 > - D) Diagnostic settings to Log Analytics
 > - E) None — basic storage account only
 >
-> *(multi-select — you can pick more than one)*
+> _(multi-select — you can pick more than one)_
 
 After all five answers are collected, confirm your understanding before moving on.
 
@@ -98,11 +111,11 @@ Before writing any resources, check whether an Azure Verified Module (AVM) exist
 
 Known AVM mappings for common resources:
 
-| Resource | AVM module source |
-|---|---|
-| Key Vault | `Azure/avm-res-keyvault-vault/azurerm` |
-| AKS | `Azure/avm-res-containerservice-managedcluster/azurerm` |
-| Virtual Network | `Azure/avm-res-network-virtualnetwork/azurerm` |
+| Resource               | AVM module source                                            |
+| ---------------------- | ------------------------------------------------------------ |
+| Key Vault              | `Azure/avm-res-keyvault-vault/azurerm`                       |
+| AKS                    | `Azure/avm-res-containerservice-managedcluster/azurerm`      |
+| Virtual Network        | `Azure/avm-res-network-virtualnetwork/azurerm`               |
 | User Assigned Identity | `Azure/avm-res-managedidentity-userassignedidentity/azurerm` |
 
 For resource types not in the table above, search registry.terraform.io for `Azure/avm-res-<resource-type>` before assuming no AVM exists.
@@ -112,6 +125,7 @@ If an AVM module exists, present this question to the user before proceeding:
 > An AVM module exists for this resource: `<avm-source>`
 >
 > How would you like to proceed?
+>
 > - A) **Use AVM** — the generated module will call the AVM module and expose a team-standard variable/output interface on top of it
 > - B) **Custom implementation** — build from scratch using `azurerm` resources directly; add a comment in `main.tf` explaining why AVM was not used
 
@@ -148,16 +162,16 @@ When building `variables.tf` for the deployment root: union all variables from t
 
 Follow the same file structure as `solutions/application-1/` (the reference implementation):
 
-| File | Contents |
-|---|---|
-| `terraform.tf` | `required_version`, `required_providers`, `backend "azurerm" {}` |
-| `providers.tf` | `provider "azurerm" { features {} }` |
-| `locals.tf` | `resource_group_name` and `common_tags` locals |
-| `main.tf` | `azurerm_resource_group.main`, then one `module` block per referenced module with all variables passed through |
-| `variables.tf` | Union of all module variables (deduplicated) |
-| `outputs.tf` | Re-exposes module outputs via `module.<name>.<output>` |
-| `environments/<env>.tfvars` | One file per environment chosen in D-Q1 |
-| `Taskfile.yml` | Copied from application-1 pattern, with solution name substituted |
+| File                        | Contents                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `terraform.tf`              | `required_version`, `required_providers`, `backend "azurerm" {}`                                               |
+| `providers.tf`              | `provider "azurerm" { features {} }`                                                                           |
+| `locals.tf`                 | `resource_group_name` and `common_tags` locals                                                                 |
+| `main.tf`                   | `azurerm_resource_group.main`, then one `module` block per referenced module with all variables passed through |
+| `variables.tf`              | Union of all module variables (deduplicated)                                                                   |
+| `outputs.tf`                | Re-exposes module outputs via `module.<name>.<output>`                                                         |
+| `environments/<env>.tfvars` | One file per environment chosen in D-Q1                                                                        |
+| `Taskfile.yml`              | Copied from application-1 pattern, with solution name substituted                                              |
 
 ---
 
@@ -182,27 +196,27 @@ Generate two sets of files — the reusable **module** and the **deployment root
 
 #### Module files — `modules/<resource-type>/v1.0.0/`
 
-| File | Contents |
-|---|---|
-| `terraform.tf` | `terraform {}` block with `required_version = "~> 1.9"` and `required_providers` (hashicorp/azurerm `~> 4.0`) only — no provider config, no backend block |
-| `main.tf` | Resources in dependency order |
-| `data.tf` | Data sources only — omit if the module has no data sources |
-| `variables.tf` | All input variables — alphabetical, each with `type`, `description`, and `validation` where values are constrained |
-| `outputs.tf` | All outputs — alphabetical, each with `description`; sensitive outputs marked `sensitive = true` |
-| `locals.tf` | Local values for name construction and the `common_tags` map |
-| `tests/<resource>.tftest.hcl` | Native Terraform test (see testing section below) |
-| `Taskfile.yml` | Targets: `validate`, `fmt`, `lint`, `test`, `all` |
+| File                          | Contents                                                                                                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `terraform.tf`                | `terraform {}` block with `required_version = "~> 1.9"` and `required_providers` (hashicorp/azurerm `~> 4.0`) only — no provider config, no backend block |
+| `main.tf`                     | Resources in dependency order                                                                                                                             |
+| `data.tf`                     | Data sources only — omit if the module has no data sources                                                                                                |
+| `variables.tf`                | All input variables — alphabetical, each with `type`, `description`, and `validation` where values are constrained                                        |
+| `outputs.tf`                  | All outputs — alphabetical, each with `description`; sensitive outputs marked `sensitive = true`                                                          |
+| `locals.tf`                   | Local values for name construction and the `common_tags` map                                                                                              |
+| `tests/<resource>.tftest.hcl` | Native Terraform test (see testing section below)                                                                                                         |
+| `Taskfile.yml`                | Targets: `validate`, `fmt`, `lint`, `test`, `all`                                                                                                         |
 
 #### Deployment root files — `solutions/<solution-name>/`
 
-| File | Contents |
-|---|---|
-| `terraform.tf` | `terraform {}` block with `required_version`, `required_providers`, and `backend "azurerm" {}` |
-| `providers.tf` | Provider configurations (e.g. `provider "azurerm" { features {} }`) |
-| `main.tf` | `module "<resource_type>" { source = "../../modules/<resource-type>/v1.0.0" ... }` — passes all variables through |
-| `variables.tf` | Same variables as the module — drives what gets passed in |
-| `outputs.tf` | Re-exposes module outputs via `module.<name>.<output>` |
-| `environments/<env>.tfvars` | Environment-specific values — structural only, no secrets |
+| File                        | Contents                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `terraform.tf`              | `terraform {}` block with `required_version`, `required_providers`, and `backend "azurerm" {}`                    |
+| `providers.tf`              | Provider configurations (e.g. `provider "azurerm" { features {} }`)                                               |
+| `main.tf`                   | `module "<resource_type>" { source = "../../modules/<resource-type>/v1.0.0" ... }` — passes all variables through |
+| `variables.tf`              | Same variables as the module — drives what gets passed in                                                         |
+| `outputs.tf`                | Re-exposes module outputs via `module.<name>.<output>`                                                            |
+| `environments/<env>.tfvars` | Environment-specific values — structural only, no secrets                                                         |
 
 The deployment root follows the same pattern as `solutions/application-1/` in this repo — use that as a reference implementation. The solution name (e.g. `application-1`, `application-2`) becomes the folder name under `solutions/`.
 
@@ -294,14 +308,14 @@ The generated `Taskfile.yml` for the solution handles init inline:
 
 ```yaml
 terraform init \
-  -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state" \
-  -backend-config="storage_account_name=st{{.ENV}}platformtfstate" \
-  -backend-config="container_name=tfstate" \
-  -backend-config="key=<solution-name>/terraform.tfstate" \
-  -backend-config="use_azuread_auth=true"
+-backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state" \
+-backend-config="storage_account_name=st{{.ENV}}platformtfstate" \
+-backend-config="container_name=tfstate" \
+-backend-config="key=<solution-name>/terraform.tfstate" \
+-backend-config="use_azuread_auth=true"
 ```
 
-Run locally with `task plan` (defaults to `sbx`) or `ENV=prd task plan` to target another environment.
+Run locally with `task plan` (defaults to `sbx`) or `ENV=prod task plan` to target another environment.
 
 ### Testing instructions for users
 
@@ -317,16 +331,19 @@ After generating all files, present the following instructions to the user:
    - [tfsec](https://aquasecurity.github.io/tfsec) — `brew install tfsec` / `choco install tfsec`
 
 2. Navigate to the module directory:
+
    ```bash
    cd modules/<resource-type>/v1.0.0   # adjust path as needed
    ```
 
 3. Run the tests:
+
    ```bash
    terraform test
    ```
 
    For formatting, linting, and validation, run from the consuming solution or repo root:
+
    ```bash
    terraform fmt -recursive
    tflint --recursive
