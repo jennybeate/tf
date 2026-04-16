@@ -27,6 +27,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install Azure CLI
+RUN curl -sLS https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+  && chmod go+r /etc/apt/keyrings/microsoft.gpg \
+  && AZ_DIST=$(. /etc/os-release && echo "$VERSION_CODENAME") \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ ${AZ_DIST} main" \
+    | tee /etc/apt/sources.list.d/azure-cli.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends azure-cli \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install additional tools
 COPY scripts/install-tools.sh /tmp/
 RUN bash /tmp/install-tools.sh && rm /tmp/install-tools.sh

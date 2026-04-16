@@ -19,7 +19,7 @@ module "aks" {
   tags               = local.common_tags
 
   managed_identities = {
-    user_assigned_resource_ids = [user_assigned_identity.identity.id]
+    user_assigned_resource_ids = [module.user_assigned_identity.resource_id]
   }
 
   default_agent_pool = {
