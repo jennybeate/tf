@@ -10,6 +10,7 @@ variable "environment" {
     condition     = contains(["can", "liv", "dev", "sbx", "tst", "uat", "stg", "prod"], var.environment)
     error_message = "Must be one of: can, liv, dev, sbx, test, uat, stage, prod."
   }
+  default = "sbx"
 }
 
 variable "kubernetes_version" {

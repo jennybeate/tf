@@ -77,6 +77,7 @@ for domain in \
     "releases.hashicorp.com" \
     "checkpoint-api.hashicorp.com" \
     "management.azure.com" \
+    "stsbxplatformtfstate.blob.core.windows.net" \
     "login.microsoftonline.com"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
