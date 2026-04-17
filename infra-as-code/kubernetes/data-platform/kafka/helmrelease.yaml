@@ -1,14 +1,3 @@
-# infrastructure/kafka/helmrepository.yaml
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: strimzi
-  namespace: flux-system
-spec:
-  interval: 1h
-  url: https://strimzi.io/charts/
----
-# infrastructure/kafka/helmrelease.yaml
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

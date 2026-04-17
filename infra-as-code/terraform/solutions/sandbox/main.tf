@@ -30,3 +30,42 @@ module "storage_account" {
   resource_group_name = azurerm_resource_group.main.name
   solution            = local.solution
 }
+
+module "keyvault" {
+  source              = "../../modules/key-vault/v2.0.0"
+  cost_center         = var.cost_center
+  environment         = var.environment
+  location            = azurerm_resource_group.main.location
+  owner               = var.owner
+  resource_group_name = azurerm_resource_group.main.name
+  solution            = local.solution
+}
+
+resource "azurerm_role_assignment" "kv_secrets_user" {
+  scope                = module.keyvault.resource_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = module.kubernetes.identity_principal_id
+}
+
+resource "azurerm_resource_group" "dns" {
+  name     = "rg-${var.environment}-dns"
+  location = local.location
+  tags     = local.common_tags
+}
+
+module "dns_zone" {
+  source = "../../modules/dns-zone/v1.0.0"
+
+  cost_center         = var.cost_center
+  dns_zone_name       = var.dns_zone_name
+  environment         = var.environment
+  owner               = var.owner
+  resource_group_name = azurerm_resource_group.dns.name
+  solution            = local.solution
+}
+
+resource "azurerm_role_assignment" "aks_dns_contributor" {
+  scope                = azurerm_resource_group.dns.id
+  role_definition_name = "DNS Zone Contributor"
+  principal_id         = module.kubernetes.identity_principal_id
+}
