@@ -219,12 +219,15 @@ Terraform state is stored in an Azure Storage Account provisioned by the Bicep b
 # Get your app registration Object ID
 az ad sp show --id <AZURE_CLIENT_ID> --query id -o tsv
 
+#Get your user Object ID (if you want to grant yourself access in the same step)
+az ad user show --id <your-email-address> --query id -o tsv 
+#Store it in the .env file (make sure this is gitignored) and load it using .\Load-Environment.ps1 before running the deployment command
+
 # Deploy the state backend
 az deployment sub create \
   --location norwayeast \
   --template-file infra-as-code/bicep/bootstrap/main.bicep \
   --parameters infra-as-code/bicep/bootstrap/config/parameters/bootstrap.bicepparam \
-  --parameters deploymentIdentityObjectId="<object-id>"
 ```
 
 This creates:
