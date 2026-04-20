@@ -49,6 +49,6 @@ variable "owner" {
 
 
 variable "replication_type" {
-  type = string
+  type    = string
   default = "LRS"
 }
