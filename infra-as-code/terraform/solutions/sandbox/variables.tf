@@ -3,6 +3,11 @@ variable "cost_center" {
   description = "Cost center code for billing and tagging."
 }
 
+variable "dns_zone_name" {
+  type        = string
+  description = "The DNS zone domain name (e.g. k8s.example.com)."
+}
+
 variable "environment" {
   type        = string
   description = "Deployment environment. Used in resource names and tags."
