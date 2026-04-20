@@ -1,6 +1,3 @@
-.EXAMPLE
-.\Load-Environment.ps1
-
 param(
     [Parameter()]
     [string]$EnvFile = ".env"
