@@ -7,5 +7,6 @@ locals {
     environment = var.environment
     owner       = var.owner
     solution    = local.solution
+    location    = local.location
   }
 }
