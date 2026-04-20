@@ -17,8 +17,28 @@ param solution string = 'platform'
 @description('Required. Name of the Storage Account. Must be lower-case. Defaults to stsbxplatformtfstate')
 param storageAccountName string = 'st${environment}${solution}tfstate'
 
-@secure()
-param deploymentIdentityObjectId string
+@description('Object ID of the deployment identity used by the pipeline. Optional. Used for role assignment.')
+param deploymentIdentityObjectId string?
+
+@description('Object ID of the user testing locally. Required for role assignment making it possible to run terraform plan.')
+param userObjectId string
+
+var roleAssignments = concat(
+  !empty(deploymentIdentityObjectId) ? [
+    {
+      principalId: deploymentIdentityObjectId
+      principalType: 'ServicePrincipal'
+      roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+    }
+  ] : [],
+  [
+    {
+      principalId: userObjectId
+      principalType: 'User'
+      roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+    }
+  ]
+)
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: 'rg-${environment}-${solution}-terraform-state'
@@ -35,14 +55,12 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.32.0' = {
     blobServices: {
       containers: [{ name: 'tfstate', publicAccess: 'None' }]
     }
-    roleAssignments: [
-            {
-              principalId: deploymentIdentityObjectId
-              principalType: 'ServicePrincipal'
-              roleDefinitionIdOrName: 'BlobDataOwner'
-            }
-          ]
+    roleAssignments: roleAssignments
       isLocalUserEnabled: false
       publicNetworkAccess: 'Enabled'
+      networkAcls: {
+        defaultAction: 'Allow'
+        bypass: 'AzureServices'
+      }
   }
 }
