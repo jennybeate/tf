@@ -1,0 +1,23 @@
+name: Kubernetes Validate — sandbox
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra-as-code/kubernetes/**"
+      - ".github/workflows/kubernetes-validate-sandbox.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_kubernetes-validate.yml
+    with:
+      include-argocd-diff: false
+    secrets: inherit

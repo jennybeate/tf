@@ -1,6 +1,6 @@
 # IaC Training — Terraform + Kubernetes on Azure
 
-This repo is the starting point for Nimtech infrastructure consultants learning Infrastructure as Code. It provides a working sandbox environment, CI/CD pipelines, team coding standards, and AI-assisted tooling — covering both Terraform (Azure resource provisioning) and Kubernetes/Flux (in-cluster GitOps).
+This repo is the starting point for Nimtech infrastructure consultants learning Infrastructure as Code. It provides a working sandbox environment, CI/CD pipelines, team coding standards, and AI-assisted tooling for building applications on Azure with Terraform and Kubernetes.
 
 ---
 
@@ -19,7 +19,9 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │       ├── _terraform-plan.yml          # Reusable plan/validate workflow (parameterised)
 │       ├── _terraform-apply.yml         # Reusable apply workflow (parameterised)
 │       ├── terraform-plan-sandbox.yml   # Sandbox PR trigger — calls _terraform-plan.yml
-│       └── terraform-apply-sandbox.yml  # Sandbox merge trigger — calls _terraform-apply.yml
+│       ├── terraform-apply-sandbox.yml  # Sandbox merge trigger — calls _terraform-apply.yml
+│       ├── _kubernetes-validate.yml     # Reusable K8s schema validation workflow
+│       └── kubernetes-validate-sandbox.yml # K8s PR trigger — calls _kubernetes-validate.yml
 ├── infra-as-code/
 │   ├── bicep/
 │   │   └── bootstrap/                   # One-time Bicep deployment (run before Terraform)
@@ -43,24 +45,24 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │   │           ├── Taskfile.yml         # Local dev commands (validate, plan, apply, etc.)
 │   │           └── environments/
 │   │               └── sbx.tfvars       # Sandbox variable values
-│   └── kubernetes/                      # In-cluster GitOps config (Flux CD)
+│   └── kubernetes/                      # In-cluster GitOps config (Argo CD)
+│       ├── argocd/                      # Argo CD bootstrap and root application
+│       │   └── root.yaml                # Root Application (app-of-apps) — syncs entire kubernetes/ directory
 │       ├── platform/                    # Cluster-wide shared services — owned by platform team
 │       │   ├── cert-manager/
-│       │   │   ├── helmrepository.yaml  # Flux: registers the Jetstack Helm chart repo
-│       │   │   ├── helmrelease.yaml     # Flux: installs cert-manager with CRDs enabled
+│       │   │   ├── application.yaml     # Argo CD: installs cert-manager with CRDs enabled
 │       │   │   └── cluster-issuer.yaml  # cert-manager: ClusterIssuer for Let's Encrypt
 │       │   ├── external-dns/
-│       │   │   ├── helmrepository.yaml  # Flux: registers the ExternalDNS Helm chart repo
-│       │   │   └── helmrelease.yaml     # Flux: installs ExternalDNS (Azure DNS provider)
+│       │   │   ├── application.yaml     # Argo CD: installs ExternalDNS (Azure DNS provider)
+│       │   │   └── values.yaml          # ExternalDNS config (resourceGroup, tenantId, subscriptionId)
 │       │   ├── ingress-nginx/
-│       │   │   ├── helmrepository.yaml  # Flux: registers the ingress-nginx Helm chart repo
-│       │   │   └── helmrelease.yaml     # Flux: installs ingress-nginx controller
+│       │   │   └── application.yaml     # Argo CD: installs ingress-nginx controller
 │       │   ├── monitoring/
-│       │   │   ├── helmrepository.yaml  # Flux: registers the Prometheus Community repo
-│       │   │   └── helmrelease.yaml     # Flux: installs kube-prometheus-stack (Prometheus + Grafana)
+│       │   │   └── application.yaml     # Argo CD: installs kube-prometheus-stack (Prometheus + Grafana)
 │       │   ├── logging/
-│       │   │   ├── helmrepository.yaml  # Flux: registers the Grafana Helm chart repo
-│       │   │   └── helmrelease.yaml     # Flux: installs Loki for log aggregation
+│       │   │   └── application.yaml     # Argo CD: installs Loki for log aggregation
+│       │   ├── external-secrets/
+│       │   │   └── application.yaml     # Argo CD: installs External Secrets Operator
 │       │   ├── secret-management/
 │       │   │   └── external-secret-store.yaml  # ESO: ClusterSecretStore pointing at Azure Key Vault
 │       │   ├── namespaces/
@@ -73,19 +75,12 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │       │       ├── cluster-roles.yaml   # ClusterRole definitions (e.g. platform-reader)
 │       │       ├── cluster-role-bindings.yaml  # Binds ClusterRoles to subjects
 │       │       └── kustomization.yaml   # Kustomize: lists RBAC files as resources
-│       ├── data-platform/               # Data-specific operators — owned by data engineering team
-│       │   └── kafka/
-│       │       ├── helmrepository.yaml  # Flux: registers the Strimzi Helm chart repo
-│       │       ├── helmrelease.yaml     # Flux: installs Strimzi Kafka operator
-│       │       └── namespace.yaml       # Namespace definition for kafka
 │       ├── tenants/                     # Per-team namespace isolation and RBAC
 │       │   └── team-analytics/
 │       │       ├── namespace.yaml       # Namespace for the analytics team
 │       │       └── rbac.yaml            # RoleBinding giving the team edit access to their namespace
-│       ├── apps/                        # First-party application workloads (Kustomize)
-│       │   └── (add per-service folders here — see "Adding an application" below)
-│       └── charts/                      # First-party Helm charts (only if the team owns the chart)
-│           └── (add per-chart folders here)
+│       └── apps/                        # First-party application workloads (Kustomize)
+│           └── (add per-service folders here — see "Phase 4" below)
 ├── scripts/
 │   └── install-tools.sh                 # Installs all required tools with pinned versions
 ├── skills/                              # Claude Code AI skills — invoked through Claude Code
@@ -112,93 +107,25 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 
 ## How the two halves fit together
 
-Running an application on Azure Kubernetes Service (AKS) requires two separate layers of configuration:
+Running an application on Azure Kubernetes Service (AKS) requires two separate layers:
 
 | Layer | Tooling | What it does | Where it lives |
 |-------|---------|--------------|----------------|
-| Azure infrastructure | Terraform | Creates the AKS cluster itself, Key Vault, networking, storage — the Azure resources that appear in the portal | `infra-as-code/terraform/` |
-| What runs inside the cluster | Flux (GitOps) | Installs software into the cluster and deploys your applications | `infra-as-code/kubernetes/` |
+| Azure infrastructure | Terraform | Creates the AKS cluster itself, Key Vault, DNS zone, networking — the Azure resources that appear in the portal | `infra-as-code/terraform/` |
+| What runs inside the cluster | Argo CD (GitOps) | Installs software into the cluster (cert-manager, monitoring, DNS, etc.) and deploys your applications | `infra-as-code/kubernetes/` |
 
-Think of it like this: Terraform builds the building (the AKS cluster). Everything in `infra-as-code/kubernetes/` furnishes and operates the building (installs the software that runs inside it).
-
-**Why GitOps?** The traditional way to deploy to Kubernetes is to run `kubectl apply` commands manually. GitOps flips this: instead of pushing changes to the cluster, you commit changes to Git, and a tool called **Flux** running inside the cluster pulls them in automatically. The Git repo becomes the single source of truth for what should be running. If someone manually changes something in the cluster, Flux detects the drift and corrects it.
-
-**Terraform** runs on demand (triggered by a PR or pipeline) to create or update Azure resources. **Flux** runs continuously inside the cluster — it checks this repo every few minutes and applies anything that has changed.
+**Why GitOps?** The traditional way to deploy to Kubernetes is to run `kubectl apply` commands manually. GitOps flips this: instead of pushing changes to the cluster, you commit changes to Git, and a tool called **Argo CD** running inside the cluster pulls them in automatically. The Git repo becomes the single source of truth for what should be running. If someone manually changes something in the cluster, Argo CD detects the drift and corrects it. Argo CD also provides a web UI for visualizing and managing applications.
 
 ---
 
-## Understanding the Kubernetes directory
+## Before you begin
 
-### Background: what is Kubernetes and Helm?
-
-**Kubernetes** is a platform for running containerised applications (Docker images) at scale. It handles restarting crashed containers, scaling services up and down, and routing network traffic between services. You describe what you want (e.g. "run 3 copies of this container") in YAML files, and Kubernetes makes it happen.
-
-**Helm** is the package manager for Kubernetes — think of it like `apt`, `brew`, or `npm` but for cluster software. A **chart** is a Helm package: a bundle of YAML templates that installs a piece of software (e.g. an ingress controller, a monitoring stack). Charts are published to **chart repositories**, which are like npm registries for Kubernetes software.
-
-**Flux** is what connects this Git repo to the cluster. It reads the YAML files in `infra-as-code/kubernetes/` and applies them to the cluster, installing Helm charts and deploying applications automatically.
-
-### File types explained
-
-| File | What it does in plain English |
-|------|-------------------------------|
-| `helmrepository.yaml` | Tells Flux where to find a Helm chart registry on the internet (like adding a package source). Must exist before installing anything from that registry. |
-| `helmrelease.yaml` | Tells Flux to install a specific Helm chart at a specific version with specific settings. If someone deletes the installed software, Flux reinstalls it automatically. |
-| `namespace.yaml` | Creates a logical partition inside the cluster. Namespaces are like folders — they keep resources for different teams or services separated so they don't interfere with each other. |
-| `cluster-issuer.yaml` | Tells cert-manager (the HTTPS certificate tool) how and where to request TLS certificates for your domains. |
-| `external-secret-store.yaml` | Tells the External Secrets Operator where secrets are stored (Azure Key Vault) so it can copy them into the cluster as Kubernetes secrets. |
-| `kustomization.yaml` | A list of YAML files to apply together as a group, used by the Kustomize tool. Think of it as an index or manifest file. |
-
-### What each tool does and why it exists
-
-**`platform/`** — Software that the whole cluster depends on. Installed and managed by the platform team. These tools handle cross-cutting concerns like HTTPS, DNS, and monitoring so that individual applications don't have to solve these problems themselves.
-
-- **`cert-manager/`** — Automatically obtains and renews HTTPS/TLS certificates (the padlock in your browser's address bar) from Let's Encrypt. Without this, you would need to manually request, download, and rotate certificates for every domain your services use. With cert-manager, you add a single annotation to an Ingress resource and the certificate is handled for you.
-  - `helmrepository.yaml` — Tells Flux to fetch the cert-manager chart from `https://charts.jetstack.io`
-  - `helmrelease.yaml` — Installs cert-manager into the cluster
-  - `cluster-issuer.yaml` — Configures cert-manager to use Let's Encrypt (currently staging/test — switch to production once DNS is working). Fill in your email address here; Let's Encrypt uses it to notify you about expiring certificates.
-
-- **`external-dns/`** — Automatically creates and updates DNS records in Azure DNS when you deploy a service. Without this, every time you deploy a new service with a domain name, someone would need to manually log into Azure and create an `A` record pointing to the cluster's IP. ExternalDNS watches for Ingress resources and does this automatically.
-  - `helmrelease.yaml` — **Requires configuration before use**: fill in `resourceGroup`, `tenantId`, and `subscriptionId` with the values for the Azure DNS zone you want it to manage.
-
-- **`ingress-nginx/`** — The cluster's front door for web traffic. When a request arrives at the cluster's public IP address, ingress-nginx reads the URL and routes it to the correct service (e.g. requests to `api.mycompany.com` go to the API service, requests to `app.mycompany.com` go to the frontend). Without an ingress controller, every service would need its own public IP address, which is expensive and hard to manage.
-
-- **`monitoring/`** — Installs the kube-prometheus-stack, which includes:
-  - **Prometheus** — scrapes metrics (CPU, memory, request rates, error rates) from all services every few seconds and stores them
-  - **Grafana** — provides a web dashboard for viewing those metrics as graphs and charts
-  - **Alertmanager** — sends alerts (email, Slack, PagerDuty) when metrics cross thresholds you define
-
-- **`logging/`** — Installs **Loki**, which collects log output from all running containers and makes it searchable. Without this, viewing logs requires connecting directly to individual pods with `kubectl logs`. With Loki, all logs are centralised and queryable through Grafana.
-
-- **`secret-management/`** — Contains the configuration for **External Secrets Operator (ESO)**. The problem ESO solves: Kubernetes needs secrets (database passwords, API keys) available inside the cluster, but you should never store real secrets in Git. ESO bridges the gap — it reads secrets from Azure Key Vault (where they're stored securely) and makes them available inside the cluster as Kubernetes secrets, keeping them out of the repo entirely.
-  - `external-secret-store.yaml` — **Requires configuration**: fill in the `vaultUrl` with the URI of your Azure Key Vault (found in the Azure portal under the Key Vault's overview page).
-
-- **`namespaces/`** — Creates the Kubernetes namespaces that the platform services run in (`cert-manager`, `external-dns`, `ingress-nginx`, `monitoring`). These must be created before Helm installs software into them.
-
-- **`rbac/`** — Role-Based Access Control. Defines who is allowed to do what inside the cluster. For example, an on-call engineer might have read access to see what's running but not permission to delete anything.
-
-**`data-platform/`** — Software specific to the data platform. Owned by the data engineering team, not the platform team, so changes here don't require platform team review.
-
-- **`kafka/`** — Installs the **Strimzi operator**, which manages Apache Kafka clusters on Kubernetes. Kafka is a message streaming platform used to move data between services at high throughput. Strimzi is an *operator* — a piece of software that knows how to install, configure, scale, and upgrade Kafka, handling the complexity that would otherwise require deep Kafka expertise to manage manually.
-  - `helmrepository.yaml` — Registers the Strimzi chart registry with Flux
-  - `helmrelease.yaml` — Installs the Strimzi operator into the `kafka` namespace. The `watchNamespaces` setting tells Strimzi to only manage Kafka resources in the `kafka` namespace (a security boundary — it won't touch other namespaces).
-  - `namespace.yaml` — Creates the `kafka` namespace
-
-**`tenants/`** — One folder per team. Each team gets their own namespace (a private area of the cluster) and a `RoleBinding` that gives team members permission to deploy into that namespace without needing platform team involvement. This is how you give teams self-service access without giving them access to the whole cluster.
-
-**`apps/`** — Your organisation's own applications (not third-party software). Each application has:
-  - `base/` — the core Kubernetes resources: Deployment (runs the container), Service (makes it reachable inside the cluster), HPA (auto-scaling), PDB (ensures availability during updates), and NetworkPolicy (firewall rules between services)
-  - `overlays/{env}/` — environment-specific overrides using **Kustomize**, a tool for customising YAML without duplicating it. For example, sandbox might run 1 replica of the service and production might run 5 — the overlay patches just that value without copying the entire base.
-
-**`charts/`** — Helm charts that your team has written and owns. Only add a chart here if your team maintains it. Software written by others (cert-manager, ingress-nginx, etc.) is consumed by referencing their published charts in `helmrelease.yaml` — you never copy third-party charts into this repo.
-
----
-
-## Prerequisites
+### Install tools
 
 | Tool | Install |
 |------|---------|
 | Azure CLI | [learn.microsoft.com](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) |
-| Flux CLI | `curl -s https://fluxcd.io/install.sh | sudo bash` |
+| Argo CD CLI | [argo-cd.readthedocs.io](https://argo-cd.readthedocs.io/en/stable/cli_installation/) |
 | Claude Code | [claude.ai/code](https://claude.ai/code) |
 
 Terraform, tflint, tfsec, and Task are installed via script — versions are pinned in [`scripts/install-tools.sh`](scripts/install-tools.sh):
@@ -209,9 +136,7 @@ bash scripts/install-tools.sh
 
 After installing tflint, run `tflint --init` in the repo root to install the azurerm ruleset.
 
----
-
-## Step 1 — Bootstrap Terraform state (one-time, platform admin)
+### Bootstrap Terraform state (one-time, platform admin)
 
 Terraform state is stored in an Azure Storage Account provisioned by the Bicep bootstrap template. This runs once per subscription before any Terraform deployments.
 
@@ -219,15 +144,15 @@ Terraform state is stored in an Azure Storage Account provisioned by the Bicep b
 # Get your app registration Object ID
 az ad sp show --id <AZURE_CLIENT_ID> --query id -o tsv
 
-#Get your user Object ID (if you want to grant yourself access in the same step)
+# Get your user Object ID (if you want to grant yourself access in the same step)
 az ad user show --id <your-email-address> --query id -o tsv 
-#Store it in the .env file (make sure this is gitignored) and load it using .\Load-Environment.ps1 before running the deployment command
+# Store it in the .env file (make sure this is gitignored) and load it using .\Load-Environment.ps1 before running the deployment command
 
 # Deploy the state backend
 az deployment sub create \
   --location norwayeast \
   --template-file infra-as-code/bicep/bootstrap/main.bicep \
-  --parameters infra-as-code/bicep/bootstrap/config/parameters/bootstrap.bicepparam \
+  --parameters infra-as-code/bicep/bootstrap/config/parameters/bootstrap.bicepparam
 ```
 
 This creates:
@@ -236,19 +161,17 @@ This creates:
 - Container: `tfstate`
 - RBAC: `Storage Blob Data Owner` for the app registration
 
----
+### Configure GitHub (one-time, platform admin)
 
-## Step 2 — GitHub setup (one-time, platform admin)
-
-### Azure OIDC — no long-lived secrets
+#### Azure OIDC — no long-lived secrets
 
 1. Create an **App Registration** in Entra ID.
 2. Under **Certificates & secrets → Federated credentials**, add:
    - Entity type: `Pull request` — used by the plan pipeline
    - Entity type: `Branch`, branch `main` — used by the apply pipeline
-3. Grant the app **Contributor** on the sandbox subscription (or scoped resource group).
+3. Grant the app **Owner** on the sandbox subscription. (Owner grants all permissions needed: Terraform management, AKS access, Key Vault access, DNS management.)
 
-### Secrets (`Settings → Secrets and variables → Actions → Secrets`)
+#### Secrets (`Settings → Secrets and variables → Actions → Secrets`)
 
 | Secret | Value |
 |--------|-------|
@@ -256,7 +179,7 @@ This creates:
 | `AZURE_TENANT_ID` | Entra ID tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Sandbox subscription ID |
 
-### Variables (`Settings → Secrets and variables → Actions → Variables`)
+#### Variables (`Settings → Secrets and variables → Actions → Variables`)
 
 | Variable | Value |
 |----------|-------|
@@ -267,22 +190,344 @@ This creates:
 
 ---
 
-## Step 3 — Authenticate locally
+## Setup guide
 
-The `Taskfile.yml` constructs backend config from the `ENV` variable (default: `sbx`) — no `backend.hcl` file is needed. Log in with the Azure CLI before running any `task plan` or `task apply`:
+### Phase 1 — Deploy the Kubernetes cluster (Terraform)
+
+#### Authenticate locally
+
+Log in with the Azure CLI:
 
 ```bash
 az login
 az account set --subscription <AZURE_SUBSCRIPTION_ID>
 ```
 
+#### Fill in the deployment variables
+
+Edit [`infra-as-code/terraform/solutions/sandbox/environments/sbx.tfvars`](infra-as-code/terraform/solutions/sandbox/environments/sbx.tfvars):
+
+```hcl
+cost_center      = "cc-0000"              # Your cost center code
+dns_zone_name    = "k8s.example.com"      # Domain for ExternalDNS to manage
+environment      = "sbx"                  # Sandbox environment
+location         = "norwayeast"           # Azure region
+node_count_min   = 1                      # Min AKS nodes
+node_count_max   = 3                      # Max AKS nodes
+node_vm_size     = "Standard_D2s_v3"      # Node VM type
+owner            = "platform-team"        # Team name for tagging
+replication_type = "LRS"                  # Storage replication (LRS = locally redundant)
+```
+
+#### Plan and apply
+
+```bash
+cd infra-as-code/terraform/solutions/sandbox
+
+task plan    # review what will be created
+task apply   # create the resources
+```
+
+#### What gets created
+
+- **AKS cluster** — the Kubernetes cluster itself (managed by Azure)
+- **Key Vault** — secret store for database passwords, API keys, etc.
+- **DNS zone** — domain for ingress-nginx to manage
+- **Storage account** — for persistent storage if needed
+- **Role assignments** — grant the AKS managed identity access to Key Vault and the DNS zone
+
+#### Important note: DNS zones in enterprise setups
+
+In most enterprise environments, the DNS zone (e.g. `platform.company.com`) lives in a centrally managed hub subscription and is owned by the networking team. If that's the case:
+
+- You cannot create a role assignment for the AKS managed identity in the hub subscription from the sandbox
+- Instead, ask the hub team to: grant the AKS managed identity `DNS Zone Contributor` on the DNS zone in the hub
+- OR: create a delegated subdomain (e.g. `sbx.platform.company.com`) that points to a throwaway zone in your sandbox
+
+For sandbox testing, it's acceptable to use a domain like `sbx.example.com` in your own subscription.
+
 ---
 
-## Development workflow
+### Phase 2 — Configure platform services
+
+Platform services need some environment-specific configuration before Argo CD deploys them. These aren't credentials (secrets), just IDs and URLs.
+
+#### ExternalDNS — Azure DNS details
+
+Edit [`infra-as-code/kubernetes/platform/external-dns/values.yaml`](infra-as-code/kubernetes/platform/external-dns/values.yaml):
+
+```yaml
+provider:
+  name: azure
+azure:
+  resourceGroup: "rsg-sbc-platform-terraform"     # Change to your DNS zone's resource group
+  tenantId: "ecabee7b-8606-4ae2-9f69-d63203bc23d5"       # Your Entra ID tenant ID (az account show --query tenantId)
+  subscriptionId: "4c85663d-30f6-45c6-9850-e84fbe731e43" # Your Azure subscription ID
+  useManagedIdentityExtension: true                      # Use AKS managed identity (no secrets needed)
+```
+
+#### cert-manager — Let's Encrypt contact
+
+Edit [`infra-as-code/kubernetes/platform/cert-manager/cluster-issuer.yaml`](infra-as-code/kubernetes/platform/cert-manager/cluster-issuer.yaml):
+
+Replace `jenny@nimtech.no` with your team's contact email. Let's Encrypt uses this to notify you before certificates expire.
+
+**Note:** The file currently points at Let's Encrypt **staging**, which issues test certificates that browsers don't trust. This is intentional for testing. Once you confirm DNS and cert-manager are working end-to-end, change the `server` URL to production:
+
+```yaml
+server: https://acme-v02.api.letsencrypt.org/directory
+```
+
+#### External Secrets — Azure Key Vault
+
+Edit [`infra-as-code/kubernetes/platform/secret-management/external-secret-store.yaml`](infra-as-code/kubernetes/platform/secret-management/external-secret-store.yaml):
+
+Find the `vaultUrl` and set it to your Key Vault's URI (from Phase 1). You can find it in the Azure portal under Key Vault → Overview, or run:
+
+```bash
+az keyvault show --resource-group rg-sbx-platform --name kv-sbx-platform --query properties.vaultUri
+```
+
+#### Commit and push
+
+Push all three changes to git. When you bootstrap Argo CD in Phase 3, it will deploy the platform with these values already set.
+
+---
+
+### Phase 3 — Install Argo CD and deploy the platform
+
+#### Get cluster credentials
+
+Download the kubeconfig file so your terminal can talk to the AKS cluster:
+
+```bash
+az aks get-credentials --resource-group rg-sbx-platform --name aks-sbx-platform
+```
+
+#### Install Argo CD
+
+Create the `argocd` namespace and deploy the stable Argo CD manifest:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+#### Wait for Argo CD to be ready
+
+```bash
+kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
+```
+
+#### Get the initial admin password
+
+```bash
+argocd admin initial-password -n argocd
+```
+
+Save this password — you'll use it to log in to the web UI.
+
+#### Access the Argo CD web UI
+
+Port-forward to the server:
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+Open `https://localhost:8080` in your browser. Log in as `admin` with the password from above.
+
+(Your browser will warn about an untrusted certificate — that's expected for bootstrap. In production, add an Ingress resource with cert-manager once everything is working.)
+
+#### Register the repository (if private)
+
+If your GitHub repository is private, Argo CD needs credentials to read it:
+
+```bash
+argocd repo add https://github.com/<org>/<repo> --username <github-user> --password <personal-access-token>
+```
+
+For a public repo, skip this step.
+
+#### Bootstrap everything
+
+Apply the root Application, which will recursively deploy all platform services:
+
+```bash
+kubectl apply -f infra-as-code/kubernetes/argocd/root.yaml
+```
+
+Argo CD immediately starts syncing the entire `infra-as-code/kubernetes/` directory. It will create Applications for each platform service (cert-manager, ingress-nginx, external-dns, monitoring, logging, external-secrets) and deploy them to the cluster.
+
+#### Verify Argo CD is working
+
+```bash
+argocd app list
+```
+
+All apps should eventually show `Synced` in the Sync Status column and `Healthy` in the Health Status column.
+
+**Note on initial sync:** On first bootstrap, Argo CD syncs all Applications simultaneously. Two resources depend on an operator being ready before they become valid:
+- `cluster-issuer.yaml` requires cert-manager CRDs
+- `external-secret-store.yaml` requires ESO CRDs
+
+These will initially show as `Failed` — that's expected. Wait for the `cert-manager` and `external-secrets` Applications to reach `Healthy`, then run:
+
+```bash
+argocd app sync cluster-root
+```
+
+Everything should reach `Synced`/`Healthy` on the second pass.
+
+---
+
+### Phase 4 — Deploy your first application
+
+Now the platform is ready. Deploy a real containerised application.
+
+#### Create your application folder
+
+Copy the template and rename it to your service:
+
+```bash
+cp -r infra-as-code/kubernetes/apps/service infra-as-code/kubernetes/apps/<your-service-name>
+cd infra-as-code/kubernetes/apps/<your-service-name>
+```
+
+#### Configure the Argo CD Application
+
+Edit `application.yaml`:
+
+```yaml
+metadata:
+  name: <your-service-name>           # Change to your service name
+spec:
+  source:
+    path: infra-as-code/kubernetes/apps/<your-service-name>/overlays/sandbox  # Update path
+  destination:
+    namespace: <target-namespace>     # Change to your team namespace (e.g. team-analytics)
+```
+
+#### Fill in the Kubernetes manifests
+
+Edit `base/deployment.yaml`:
+
+```yaml
+spec:
+  containers:
+    - name: app
+      image: <your-container-image>    # Your Docker image
+      ports:
+        - containerPort: 8080           # Port your app listens on
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+```
+
+Edit `base/service.yaml` to expose the deployment as a ClusterIP service.
+
+Edit `base/kustomization.yaml` to list all the base resources:
+
+```yaml
+resources:
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+```
+
+#### Create the Kustomize overlay
+
+Create `overlays/sandbox/kustomization.yaml` to patch the image tag and replica count for the sandbox environment:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../base
+
+images:
+  - name: app
+    newTag: "v1.0.0"  # Tag of your image in the sandbox
+
+replicas:
+  - name: app
+    count: 1  # Run 1 replica in sandbox
+```
+
+#### Add an Ingress (for public access)
+
+If your service needs a public URL, add an Ingress resource to `base/`:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: <your-service-name>
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # ^ Tells cert-manager to auto-issue a certificate for this domain
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <your-service-name>.k8s.example.com
+      secretName: <your-service-name>-tls
+  rules:
+    - host: <your-service-name>.k8s.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: <your-service-name>
+                port:
+                  number: 8080
+```
+
+#### Deploy
+
+Commit and push your changes:
+
+```bash
+git add infra-as-code/kubernetes/apps/<your-service-name>
+git commit -m "Add <your-service-name> application"
+git push
+```
+
+Argo CD will detect the new Application within ~3 minutes and deploy it. To sync immediately:
+
+```bash
+argocd app sync cluster-root
+```
+
+Verify the deployment:
+
+```bash
+argocd app get <your-service-name>
+```
+
+Once it shows `Synced`/`Healthy`, access your application at:
+
+```
+https://<your-service-name>.k8s.example.com
+```
+
+---
+
+## Day-to-day workflows
 
 ### Creating a new Terraform module
 
-Use the `tf-architect` skill in Claude Code. It walks you through module requirements and generates all files conforming to team standards:
+Use the `tf-architect` skill in Claude Code:
 
 ```
 use tf-architect to scaffold an Azure Key Vault module
@@ -290,11 +535,11 @@ use tf-architect to scaffold an Azure Key Vault module
 
 The skill generates: `main.tf`, `variables.tf`, `outputs.tf`, `locals.tf`, `terraform.tf`, `providers.tf`, `Taskfile.yml`, and `environments/<env>.tfvars`.
 
-Modules may also include a `tests/` directory with `.tftest.hcl` files — see `key-vault/v1.0.0/tests/` for an example. Run tests with `terraform test` from the module directory.
+Modules may also include a `tests/` directory with `.tftest.hcl` files. Run tests with `terraform test` from the module directory.
 
-### Scaffolding a new deployment (e.g. sandbox)
+### Scaffolding a new deployment
 
-Use `tf-architect` for deployments too — tell it which module to deploy and which environment:
+Use `tf-architect`:
 
 ```
 use tf-architect to scaffold a sandbox deployment of the storage-account module
@@ -302,19 +547,19 @@ use tf-architect to scaffold a sandbox deployment of the storage-account module
 
 ### Setting up CI/CD for a Terraform deployment
 
-Use the `github-actions-cicd` skill. It asks for the module path, tfvars file, and whether you want an apply workflow, then generates fully standards-compliant workflow files:
+Use the `github-actions-cicd` skill:
 
 ```
 use github-actions-cicd to set up a plan workflow for the sandbox deployment
 ```
 
 The skill produces:
-- `.github/workflows/_terraform-plan.yml` — reusable workflow (parameterised)
+- `.github/workflows/_terraform-plan.yml` — reusable workflow
 - `.github/workflows/terraform-plan.yml` — caller scoped to your deployment path
 
 ### Local development (Terraform)
 
-Each deployment directory has a `Taskfile.yml` with these targets:
+Each deployment directory has a `Taskfile.yml`:
 
 ```bash
 cd infra-as-code/terraform/solutions/sandbox
@@ -337,22 +582,53 @@ ENV=can task plan
 ### Adding a platform service (Kubernetes)
 
 1. Create a folder under `infra-as-code/kubernetes/platform/<service-name>/`.
-2. Add `helmrepository.yaml` with the chart source URL and `helmrelease.yaml` with the install config.
+2. Add `application.yaml` with the Argo CD Application manifest (specifying the Helm chart repo URL, chart name, version, and values).
 3. Add a `namespace.yaml` if the service needs its own namespace (and reference it in `platform/namespaces/kustomization.yaml`).
-4. Commit and push. Flux detects the change and reconciles within its configured interval.
+4. Commit and push. The root Argo CD Application detects the new `application.yaml` within its sync interval (default 3 minutes) and deploys the service. To sync immediately: `argocd app sync cluster-root`.
 
 ### Adding an application workload
 
-1. Create `infra-as-code/kubernetes/apps/<service-name>/base/` with `deployment.yaml`, `service.yaml`, `hpa.yaml`, `pdb.yaml`, `networkpolicy.yaml`, and `kustomization.yaml`.
-2. Create `overlays/sandbox/kustomization.yaml` with patches for the sandbox image tag and replica count.
-3. Reference the `ClusterIssuer` by name in the `Ingress` annotation — do not add cert-manager config to the app folder.
-4. Commit and push.
+1. Copy `infra-as-code/kubernetes/apps/service` to `apps/<service-name>`.
+2. Fill in `application.yaml` — set the service name, namespace, and overlay path.
+3. Fill in the base manifests (deployment, service, etc.) with your container image and config.
+4. Create `overlays/sandbox/kustomization.yaml` with patches for the image tag and replica count.
+5. Add an Ingress resource if the service needs a public URL (reference the `ClusterIssuer` by name in the annotation).
+6. Commit and push. Argo CD detects the new Application within ~3 minutes and deploys it. To sync immediately: `argocd app sync cluster-root`.
 
 ---
 
-## CI/CD pipeline (Terraform — active)
+## Cleanup / teardown
 
-### `terraform-plan-sandbox.yml` (PR trigger)
+When you are done with the sandbox, tear down resources in this order.
+
+### 1 — Destroy Terraform-managed resources
+
+```bash
+cd infra-as-code/terraform/solutions/sandbox
+task destroy
+```
+
+This runs `terraform destroy` with the same backend config used by `task plan` and `task apply`. Confirm the plan when prompted.
+
+### 2 — Delete the Terraform state backend
+
+Once all managed resources are gone, delete the state storage account:
+
+```bash
+az group delete --name rg-sbx-platform-terraform-state --yes
+```
+
+This removes the resource group, storage account, and `tfstate` container.
+
+> **Order matters.** Always destroy Terraform resources before deleting the state backend. Deleting the backend first loses the state file.
+
+---
+
+## CI/CD pipelines
+
+### Terraform validation (active)
+
+#### `terraform-plan-sandbox.yml` (PR trigger)
 
 Triggers on pull requests to `main` that change files under `infra-as-code/terraform/solutions/sandbox/**`.
 
@@ -361,9 +637,7 @@ Triggers on pull requests to `main` that change files under `infra-as-code/terra
 | `validate` | install tools, fmt check, tflint, `terraform init -backend=false`, `terraform validate`, tfsec |
 | `plan` | OIDC init (inline backend config), `terraform plan`, plan comment on PR, artifact upload |
 
-Uses the reusable workflow `_terraform-plan.yml`, which accepts inputs, secrets, and produces outputs — call it from any environment-specific caller workflow.
-
-### `terraform-apply-sandbox.yml` (merge trigger)
+#### `terraform-apply-sandbox.yml` (merge trigger)
 
 Triggers on pushes to `main` that change files under `infra-as-code/terraform/solutions/sandbox/**`.
 
@@ -371,108 +645,93 @@ Triggers on pushes to `main` that change files under `infra-as-code/terraform/so
 |-----|-------|
 | `apply` | OIDC init (inline backend config), `terraform apply` using the plan artifact from the PR |
 
-Uses the reusable workflow `_terraform-apply.yml`. To add CI/CD for a new deployment, run:
+To add CI/CD for a new deployment:
 
 ```
 use github-actions-cicd to set up plan and apply workflows for <your deployment path>
 ```
 
----
+### Kubernetes validation (active)
 
-## TODO — Kubernetes deployment (not yet active)
+#### `kubernetes-validate-sandbox.yml` (PR trigger)
 
-The `infra-as-code/kubernetes/` directory is scaffolded but not yet connected to a live cluster. Work through these steps in order — each phase depends on the previous one being complete.
+Triggers on pull requests to `main` that change files under `infra-as-code/kubernetes/**`.
 
-### Phase 1 — Provision Azure infrastructure via Terraform
-
-Before anything can run in Kubernetes, the Azure resources that support it must exist.
-
-- [ ] **Provision the AKS cluster** — confirm the `kubernetes/v2.0.0` Terraform module is wired into `terraform/solutions/sandbox/main.tf` and run `task apply`. AKS is the managed Kubernetes service on Azure — it is the cluster that everything else runs inside.
-
-- [ ] **Deploy Azure Key Vault** — wire the `key-vault/v2.0.0` Terraform module into the sandbox solution and apply it. Key Vault is Azure's secret store — it holds passwords, API keys, and certificates securely. The cluster will read secrets from here via External Secrets Operator rather than storing them in Git.
-
-- [ ] **Grant the cluster permission to read from Key Vault** — AKS creates a managed identity (a system account with no password) for the node pool. After the cluster exists, grant that identity the **Key Vault Secrets User** role on the Key Vault. This is what allows pods in the cluster to read secrets from Key Vault without any credentials hardcoded anywhere.
-
-- [ ] **Grant the cluster permission to manage DNS** — grant the AKS managed identity the **DNS Zone Contributor** role on the resource group containing your Azure DNS zone. This is what allows ExternalDNS to automatically create DNS records when you deploy a service.
-
-  > **DNS zones are almost always centrally managed.** In most enterprise setups, the DNS zone (e.g. `platform.company.com`) lives in a shared/hub subscription — not in the sandbox subscription — and is owned by a central networking or platform team. This has a few practical implications:
-  >
-  > - The role assignment (`DNS Zone Contributor`) must be created in the **hub subscription**, not the sandbox subscription. A platform admin typically needs to do this, as sandbox engineers rarely have permissions there.
-  > - The `resourceGroup` value in `platform/external-dns/helmrelease.yaml` should be the resource group **in the hub subscription** where the DNS zone lives, not the sandbox resource group.
-  > - If cross-subscription DNS management is not possible (e.g. permissions are locked down), an alternative is to create a **delegated subdomain** for each environment. The central team creates an NS record in the root zone that delegates `sbx.platform.company.com` to a DNS zone in the sandbox subscription. ExternalDNS then manages only that delegated zone, within the sandbox subscription, without needing hub access.
-  > - For initial sandbox testing only, it is acceptable to create a throwaway DNS zone (`sbx.platform.company.com`) directly in the sandbox subscription and point ExternalDNS at that.
-
-### Phase 2 — Install Flux into the cluster (bootstrap)
-
-Flux is the GitOps engine — the software running inside the cluster that watches this repo and applies changes automatically. "Bootstrapping" means installing Flux for the first time.
-
-- [ ] **Get cluster credentials** — download the kubeconfig file that lets your terminal talk to the AKS cluster:
-  ```bash
-  az aks get-credentials --resource-group rg-sbx-platform --name aks-sbx-platform
-  ```
-
-- [ ] **Create a GitHub personal access token (PAT)** — go to GitHub → Settings → Developer settings → Personal access tokens → Generate new token (classic). Give it the `repo` scope. Flux needs this token to read the repo and to write its own bootstrap files back to it.
-
-- [ ] **Run `flux bootstrap`** — this installs the Flux controllers into the cluster and tells Flux where to find its config (this repo, `infra-as-code/kubernetes/` path):
-  ```bash
-  flux bootstrap github \
-    --owner=<your-github-org-or-user> \
-    --repository=<this-repo-name> \
-    --branch=main \
-    --path=infra-as-code/kubernetes \
-    --personal
-  ```
-  After this command runs, Flux commits a small `flux-system/` folder back to the repo (don't delete it — it's how Flux manages itself) and begins reconciling the `kubernetes/` directory.
-
-- [ ] **Verify Flux is working** — run `flux get all`. Every row should eventually show `Ready: True`. If something shows `False`, run `flux logs` to see what went wrong.
-
-### Phase 3 — Fill in the blanks in platform config
-
-The platform service config files have placeholder values that must be filled in before those services will work correctly.
-
-- [ ] **ExternalDNS — add your Azure DNS details** — open [`infra-as-code/kubernetes/platform/external-dns/helmrelease.yaml`](infra-as-code/kubernetes/platform/external-dns/helmrelease.yaml) and fill in:
-  - `resourceGroup` — the Azure resource group that contains your DNS zone (find it in the Azure portal under DNS Zones)
-  - `tenantId` — your Entra ID tenant ID (`az account show --query tenantId`)
-  - `subscriptionId` — your Azure subscription ID (`az account show --query id`)
-
-- [ ] **cert-manager — add your email address** — open [`infra-as-code/kubernetes/platform/cert-manager/cluster-issuer.yaml`](infra-as-code/kubernetes/platform/cert-manager/cluster-issuer.yaml) and replace `jenny@nimtech.no` with the correct contact email. Let's Encrypt uses this to notify you before certificates expire. The file currently points at the Let's Encrypt **staging** environment, which issues test certificates that browsers don't trust — this is intentional for initial testing. Once you confirm DNS and cert-manager are working end-to-end, change the `server` URL to the production Let's Encrypt endpoint (`https://acme-v02.api.letsencrypt.org/directory`).
-
-- [ ] **Install External Secrets Operator** — ESO is not yet in the `platform/` directory. Add it: create `platform/external-secrets/helmrepository.yaml` (source: `https://charts.external-secrets.io`) and `platform/external-secrets/helmrelease.yaml`. ESO must be installed before the `ClusterSecretStore` in `secret-management/` becomes active.
-
-- [ ] **External Secrets — add your Key Vault URI** — open [`infra-as-code/kubernetes/platform/secret-management/external-secret-store.yaml`](infra-as-code/kubernetes/platform/secret-management/external-secret-store.yaml) and fill in `vaultUrl` with the URI of the Key Vault created in Phase 1. You can find it in the Azure portal on the Key Vault overview page (it looks like `https://kv-sbx-platform.vault.azure.net`).
-
-- [ ] **Verify the full chain** — deploy a test service with a public domain name and confirm: ExternalDNS created a DNS record → cert-manager issued a certificate → the service is reachable over HTTPS in a browser.
-
-### Phase 4 — Add GitHub Actions validation for Kubernetes changes
-
-Currently there are no automated checks on the `kubernetes/` directory. A typo in a YAML file merges silently and Flux will fail when it tries to apply it. Add a validation pipeline to catch errors on PRs before they reach `main`.
-
-Note: unlike Terraform (where `terraform plan` shows exactly what will change), Kubernetes validation is mostly schema checking — confirming YAML is structurally valid. Deeper "what will this actually do" checking requires cluster credentials.
-
-- [ ] **Create `_kubernetes-validate.yml`** — a reusable validation workflow (following the same pattern as `_terraform-plan.yml`) that:
-  - Runs `kubeconform` to check all YAML files against official Kubernetes API schemas — catches typos in field names, wrong types, missing required fields
-  - Runs `helm lint` on any charts in `charts/` — checks chart structure and template syntax
-  - Optionally runs `flux diff` to show what the cluster would change (requires cluster credentials via OIDC)
-
-- [ ] **Create `kubernetes-validate-sandbox.yml`** — a PR trigger that calls `_kubernetes-validate.yml` on any change under `infra-as-code/kubernetes/**`. Without this, bad YAML merges silently.
-
-- [ ] **Add cluster credentials to GitHub Actions** — for `flux diff` to work in CI, add a step that runs `az aks get-credentials` using the existing OIDC identity (the same one Terraform uses). No new secrets needed if the existing app registration has AKS read access.
-
-- [ ] **(Optional) Force immediate reconciliation on merge** — by default Flux checks the repo every 1–10 minutes. To apply changes immediately after merge, add a step to your apply pipeline: `flux reconcile source git flux-system`. This is a nice-to-have for fast feedback but not required.
-
-### Phase 5 — Harden for production
-
-These steps are not needed for a working sandbox but are required before running production workloads.
-
-- [ ] **Encrypt secrets in Git with SOPS** — if you ever need to commit a secret value to the repo (e.g. a bootstrap token), encrypt it first using SOPS and an Azure Key Vault key. Flux supports SOPS natively and will decrypt on the fly. Never commit plaintext secrets.
-- [ ] **Add NetworkPolicy to every namespace** — by default, all pods in a Kubernetes cluster can talk to each other freely. NetworkPolicy lets you define firewall rules between namespaces and services, so a compromised service can't reach everything else.
-- [ ] **Enable Pod Security Standards** — enforce the `restricted` security policy on all non-system namespaces. This prevents pods from running as root, mounting host paths, or using privileged containers.
-- [ ] **Configure Alertmanager** — open `platform/monitoring/helmrelease.yaml` and configure the `alertmanager` values section to route alerts to your team's Slack channel or on-call tool (PagerDuty, OpsGenie, etc.).
-- [ ] **Set Flux reconciliation order** — add `dependsOn` fields to the Flux `Kustomization` objects so that `data-platform` and `apps` wait for `platform` to be fully healthy before reconciling. This prevents failures during cold-start when platform services aren't ready yet.
+Runs schema validation with `kubeconform` (catches typos in field names, wrong types, missing required fields) and `helm lint` on any charts in `charts/`.
 
 ---
 
-## AI skills (Claude Code)
+## Next steps
+
+This setup is complete enough to bootstrap a working cluster, but these enhancements are useful for production use:
+
+- **Argo CD Ingress** — The Argo CD web UI is currently only accessible via port-forward. Create an Ingress resource (once cert-manager is working) for persistent access.
+- **Production hardening** — Enable SOPS secret encryption, add NetworkPolicy rules, enforce Pod Security Standards, configure Alertmanager routing, and set Argo CD sync waves for controlled deployment order.
+- **Extend the platform** — Add additional platform services (service mesh, real-time logging, advanced monitoring) as your team's needs grow.
+
+---
+
+## Reference
+
+### Understanding the Kubernetes directory
+
+#### Background: what is Kubernetes and Helm?
+
+**Kubernetes** is a platform for running containerised applications (Docker images) at scale. It handles restarting crashed containers, scaling services up and down, and routing network traffic between services. You describe what you want (e.g. "run 3 copies of this container") in YAML files, and Kubernetes makes it happen.
+
+**Helm** is the package manager for Kubernetes — think of it like `apt`, `brew`, or `npm` but for cluster software. A **chart** is a Helm package: a bundle of YAML templates that installs a piece of software (e.g. an ingress controller, a monitoring stack). Charts are published to **chart repositories**, which are like npm registries for Kubernetes software.
+
+**Argo CD** is what connects this Git repo to the cluster. It reads the YAML files in `infra-as-code/kubernetes/` and applies them to the cluster, installing Helm charts and deploying applications automatically.
+
+#### File types explained
+
+| File | What it does in plain English |
+|------|-------------------------------|
+| `application.yaml` | An Argo CD Application manifest. Tells Argo CD which Helm chart (or Kustomize overlay) to install, at which version, and with which values. |
+| `namespace.yaml` | Creates a logical partition inside the cluster. Namespaces are like folders — they keep resources for different teams or services separated so they don't interfere with each other. |
+| `cluster-issuer.yaml` | Tells cert-manager (the HTTPS certificate tool) how and where to request TLS certificates for your domains. |
+| `external-secret-store.yaml` | Tells the External Secrets Operator where secrets are stored (Azure Key Vault) so it can copy them into the cluster as Kubernetes secrets. |
+| `kustomization.yaml` | A list of YAML files to apply together as a group, used by the Kustomize tool. Think of it as an index or manifest file. |
+
+#### What each tool does and why it exists
+
+**`platform/`** — Software that the whole cluster depends on. Installed and managed by the platform team. These tools handle cross-cutting concerns like HTTPS, DNS, and monitoring so that individual applications don't have to solve these problems themselves.
+
+- **`cert-manager/`** — Automatically obtains and renews HTTPS/TLS certificates (the padlock in your browser's address bar) from Let's Encrypt. Without this, you would need to manually request, download, and rotate certificates for every domain your services use. With cert-manager, you add a single annotation to an Ingress resource and the certificate is handled for you.
+  - `application.yaml` — Argo CD Application manifest that installs cert-manager into the cluster
+  - `cluster-issuer.yaml` — Configures cert-manager to use Let's Encrypt (currently staging/test — switch to production once DNS is working). Fill in your email address here; Let's Encrypt uses it to notify you about expiring certificates.
+
+- **`external-dns/`** — Automatically creates and updates DNS records in Azure DNS when you deploy a service. Without this, every time you deploy a new service with a domain name, someone would need to manually log into Azure and create an `A` record pointing to the cluster's IP. ExternalDNS watches for Ingress resources and does this automatically.
+  - `application.yaml` — Argo CD Application manifest that installs ExternalDNS
+  - `values.yaml` — Configuration for Azure DNS access (resourceGroup, tenantId, subscriptionId)
+
+- **`ingress-nginx/`** — The cluster's front door for web traffic. When a request arrives at the cluster's public IP address, ingress-nginx reads the URL and routes it to the correct service (e.g. requests to `api.mycompany.com` go to the API service, requests to `app.mycompany.com` go to the frontend). Without an ingress controller, every service would need its own public IP address, which is expensive and hard to manage.
+
+- **`monitoring/`** — Installs the kube-prometheus-stack, which includes:
+  - **Prometheus** — scrapes metrics (CPU, memory, request rates, error rates) from all services every few seconds and stores them
+  - **Grafana** — provides a web dashboard for viewing those metrics as graphs and charts
+  - **Alertmanager** — sends alerts (email, Slack, PagerDuty) when metrics cross thresholds you define
+
+- **`logging/`** — Installs **Loki**, which collects log output from all running containers and makes it searchable. Without this, viewing logs requires connecting directly to individual pods with `kubectl logs`. With Loki, all logs are centralised and queryable through Grafana.
+
+- **`external-secrets/`** — Installs the **External Secrets Operator (ESO)**. ESO reads secrets from Azure Key Vault (where they're stored securely) and makes them available inside the cluster as Kubernetes secrets, keeping them out of Git entirely.
+
+- **`secret-management/`** — Contains the configuration for ESO. Tells ESO where to find your Key Vault and how to map secrets into the cluster.
+  - `external-secret-store.yaml` — ClusterSecretStore pointing at your Azure Key Vault
+
+- **`namespaces/`** — Creates the Kubernetes namespaces that the platform services run in. These must be created before Helm installs software into them.
+
+- **`rbac/`** — Role-Based Access Control. Defines who is allowed to do what inside the cluster. For example, an on-call engineer might have read access to see what's running but not permission to delete anything.
+
+**`tenants/`** — One folder per team. Each team gets their own namespace (a private area of the cluster) and a `RoleBinding` that gives team members permission to deploy into that namespace without needing platform team involvement. This is how you give teams self-service access without giving them access to the whole cluster.
+
+**`apps/`** — Your organisation's own applications (not third-party software). Each application has:
+  - `base/` — the core Kubernetes resources: Deployment (runs the container), Service (makes it reachable inside the cluster), HPA (auto-scaling), PDB (ensures availability during updates), and NetworkPolicy (firewall rules between services)
+  - `overlays/{env}/` — environment-specific overrides using **Kustomize**, a tool for customising YAML without duplicating it. For example, sandbox might run 1 replica of the service and production might run 5 — the overlay patches just that value without copying the entire base.
+
+**`charts/`** — Helm charts that your team has written and owns. Only add a chart here if your team maintains it. Software written by others (cert-manager, ingress-nginx, etc.) is consumed by referencing their published charts in Application manifests — you never copy third-party charts into this repo.
+
+### AI skills
 
 All skills are invoked through Claude Code. In VS Code, use the chat panel. In the terminal, run `claude` from the repo root.
 
@@ -485,9 +744,7 @@ All skills are invoked through Claude Code. In VS Code, use the chat panel. In t
 
 `CLAUDE.md` is loaded automatically and configures all skills — no manual setup required.
 
----
-
-## Standards
+### Standards
 
 All code is written and reviewed against:
 
@@ -499,7 +756,7 @@ All code is written and reviewed against:
 | [`standards/templates/naming-conventions.md`](standards/templates/naming-conventions.md) | Azure resource naming rules |
 | [`standards/templates/kubernetes-pod-best-practices.md`](standards/templates/kubernetes-pod-best-practices.md) | Pod spec conventions, resource limits, probes |
 
-### Required tags on every Terraform resource
+#### Required tags on every Terraform resource
 
 ```hcl
 tags = local.common_tags   # defined in locals.tf
@@ -514,22 +771,21 @@ locals {
 }
 ```
 
-### Naming pattern
+#### Naming pattern
 
 ```
 {type}-{environment}-{solution}   # resource groups, vnets, AKS clusters, etc.
 st{environment}{solution}          # storage accounts (no hyphens, max 24 chars)
 ```
 
----
-
-## References
+### External links
 
 - [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
 - [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/)
 - [HashiCorp style guide](https://developer.hashicorp.com/terraform/language/style)
-- [Flux CD documentation](https://fluxcd.io/flux/)
-- [Flux multi-tenancy guide](https://fluxcd.io/flux/guides/multi-tenancy/)
+- [Argo CD documentation](https://argo-cd.readthedocs.io/en/stable/)
+- [Argo CD app-of-apps pattern](https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-bootstrapping/)
+- [Argo CD Helm integration](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/)
 - [cert-manager documentation](https://cert-manager.io/docs/)
 - [ExternalDNS on Azure](https://kubernetes-sigs.github.io/external-dns/latest/tutorials/azure/)
 - [External Secrets Operator](https://external-secrets.io/latest/)
