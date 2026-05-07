@@ -252,6 +252,20 @@ For sandbox testing, it's acceptable to use a domain like `sbx.example.com` in y
 
 Platform services need some environment-specific configuration before Argo CD deploys them. These aren't credentials (secrets), just IDs and URLs.
 
+> **Optional automation:** If you have all values ready, run [`scripts/configure-platform.sh`](scripts/configure-platform.sh) to patch all three files at once:
+>
+> ```bash
+> bash scripts/configure-platform.sh \
+>   --tenant-id        <your-tenant-id> \
+>   --subscription-id  <your-subscription-id> \
+>   --resource-group   rg-sbx-platform \
+>   --keyvault-uri     https://kv-sbx-platform.vault.azure.net \
+>   --email            your@email.com \
+>   --dns-zone         k8s.example.com
+> ```
+>
+> Commit and push the changes before continuing to Phase 3. The manual steps below explain what each value controls.
+
 #### ExternalDNS — Azure DNS details
 
 Edit [`infra-as-code/kubernetes/platform/external-dns/values.yaml`](infra-as-code/kubernetes/platform/external-dns/values.yaml):
@@ -295,6 +309,16 @@ Push all three changes to git. When you bootstrap Argo CD in Phase 3, it will de
 ---
 
 ### Phase 3 — Install Argo CD and deploy the platform
+
+> **Optional automation:** To run all Phase 3 steps in one go:
+>
+> ```bash
+> bash scripts/bootstrap-argocd.sh \
+>   --resource-group rg-sbx-platform \
+>   --cluster-name   aks-sbx-platform
+> ```
+>
+> The script gets credentials, installs Argo CD, waits for readiness, prints the initial admin password, and applies `root.yaml`. You still need to manually port-forward and log in. The manual steps below remain the definitive reference.
 
 #### Get cluster credentials
 
