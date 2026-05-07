@@ -136,6 +136,62 @@ bash scripts/install-tools.sh
 
 After installing tflint, run `tflint --init` in the repo root to install the azurerm ruleset.
 
+### Optional bootstrap scripts
+
+The 4-phase setup guide can be run entirely manually, or you can use two optional automation scripts to skip repetitive steps. Both are located in `scripts/`:
+
+**`scripts/configure-platform.sh`** — Patches Phase 2 YAML files automatically.
+
+Instead of manually editing three separate files (external-dns values, cert-manager email, ESO Key Vault URI), this script patches them all at once using `sed`:
+
+```bash
+bash scripts/configure-platform.sh \
+  --tenant-id        <your-entra-id-tenant-uuid> \
+  --subscription-id  <your-azure-subscription-uuid> \
+  --resource-group   rg-sbx-platform \
+  --keyvault-uri     https://kv-sbx-platform.vault.azure.net \
+  --email            your-team@example.com \
+  --dns-zone         k8s.example.com
+```
+
+All six flags are required. The script:
+- Validates that all flags are provided
+- Patches `platform/external-dns/values.yaml` (resourceGroup, tenantId, subscriptionId)
+- Patches `platform/cert-manager/cluster-issuer.yaml` (email)
+- Patches `platform/secret-management/external-secret-store.yaml` (vaultUrl)
+- Prints a `git diff` summary
+- Reminds you to commit and push before continuing
+
+**`scripts/bootstrap-argocd.sh`** — Runs all Phase 3 steps in one command.
+
+Instead of running eight manual steps (get credentials, create namespace, install Argo CD, wait, get password, apply root.yaml), this script does them all:
+
+```bash
+bash scripts/bootstrap-argocd.sh \
+  [--resource-group rg-sbx-platform] \
+  [--cluster-name   aks-sbx-platform]
+```
+
+Both flags are optional and default to the sandbox environment. The script:
+- Checks that `az`, `kubectl`, and `argocd` are installed
+- Gets AKS credentials
+- Creates the `argocd` namespace
+- Installs Argo CD from the stable manifest
+- Waits for the server and controller to be ready (300s timeout)
+- Prints the initial admin password
+- Applies `infra-as-code/kubernetes/argocd/root.yaml`
+- Prints port-forward and `argocd app list` commands
+
+You still need to manually port-forward and log in — those steps are left intentional so you see the UI and understand the platform.
+
+**When to use them:**
+- Use `configure-platform.sh` if you have all platform values (Azure IDs, Key Vault URI, email, DNS zone) ready and want to skip manual YAML editing.
+- Use `bootstrap-argocd.sh` if you want to skip the tedious sequence of kubectl and argocd CLI commands.
+- Both scripts are safe to run multiple times (they validate or are idempotent).
+- Both are designed for CI/CD use — no interactive prompts or passwords.
+
+The 4-phase manual guide below remains the reference. These scripts are optional shortcuts.
+
 ### Bootstrap Terraform state (one-time, platform admin)
 
 Terraform state is stored in an Azure Storage Account provisioned by the Bicep bootstrap template. This runs once per subscription before any Terraform deployments.
