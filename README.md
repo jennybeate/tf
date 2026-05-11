@@ -330,7 +330,7 @@ Edit [`infra-as-code/kubernetes/platform/external-dns/values.yaml`](infra-as-cod
 provider:
   name: azure
 azure:
-  resourceGroup: "rsg-sbc-platform-terraform"     # Change to your DNS zone's resource group
+  resourceGroup: "rsg-sbx-platform-terraform"     # Change to your DNS zone's resource group
   tenantId: "ecabee7b-8606-4ae2-9f69-d63203bc23d5"       # Your Entra ID tenant ID (az account show --query tenantId)
   subscriptionId: "4c85663d-30f6-45c6-9850-e84fbe731e43" # Your Azure subscription ID
   useManagedIdentityExtension: true                      # Use AKS managed identity (no secrets needed)
