@@ -21,7 +21,7 @@ run "key_vault_name_follows_convention" {
   command = plan
 
   assert {
-    condition     = module.this.name == "kv-sbx-platform"
+    condition     = module.this.name == "kv-sbx-application-1"
     error_message = "Key Vault name must follow the pattern kv-{environment}-{solution}."
   }
 }
