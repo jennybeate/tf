@@ -149,7 +149,7 @@ bash scripts/configure-platform.sh \
   --tenant-id        <your-entra-id-tenant-uuid> \
   --subscription-id  <your-azure-subscription-uuid> \
   --resource-group   rg-sbx-platform \
-  --keyvault-uri     https://kv-sbx-platform.vault.azure.net \
+  --keyvault-uri     https://kv-sbx-application-1.vault.azure.net \
   --email            your-team@example.com \
   --dns-zone         k8s.example.com
 ```
@@ -315,7 +315,7 @@ Platform services need some environment-specific configuration before Argo CD de
 >   --tenant-id        <your-tenant-id> \
 >   --subscription-id  <your-subscription-id> \
 >   --resource-group   rg-sbx-platform \
->   --keyvault-uri     https://kv-sbx-platform.vault.azure.net \
+>   --keyvault-uri     https://kv-sbx-application-1.vault.azure.net \
 >   --email            your@email.com \
 >   --dns-zone         k8s.example.com
 > ```
@@ -355,7 +355,7 @@ Edit [`infra-as-code/kubernetes/platform/secret-management/external-secret-store
 Find the `vaultUrl` and set it to your Key Vault's URI (from Phase 1). You can find it in the Azure portal under Key Vault → Overview, or run:
 
 ```bash
-az keyvault show --resource-group rg-sbx-platform --name kv-sbx-platform --query properties.vaultUri
+az keyvault show --resource-group rg-sbx-platform --name kv-sbx-application-1 --query properties.vaultUri
 ```
 
 #### Commit and push
