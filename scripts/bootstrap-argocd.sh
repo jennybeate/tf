@@ -10,8 +10,8 @@ usage() {
 Usage: $(basename "$0") [--resource-group <rg>] [--cluster-name <name>]
 
 Defaults:
-  --resource-group  rg-sbx-platform
-  --cluster-name    aks-sbx-platform
+  --resource-group  rg-sbx-application-1
+  --cluster-name    aks-sbx-application-1
 
 Options:
   -h, --help  Show this help message
@@ -19,8 +19,8 @@ EOF
 }
 
 # Defaults
-RESOURCE_GROUP="rg-sbx-platform"
-CLUSTER_NAME="aks-sbx-platform"
+RESOURCE_GROUP="rg-sbx-application-1"
+CLUSTER_NAME="aks-sbx-application-1"
 
 # Parse flags
 while [[ $# -gt 0 ]]; do
