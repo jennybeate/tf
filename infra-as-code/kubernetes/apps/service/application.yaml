@@ -1,0 +1,20 @@
+# Rename this folder from 'service' to your actual service name.
+# Fill in <service-name>, <target-namespace>, and the correct overlay path before committing.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: <service-name>
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nimtech/terraform-testing
+    targetRevision: main
+    path: infra-as-code/kubernetes/apps/<service-name>/overlays/sandbox
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: <target-namespace>
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

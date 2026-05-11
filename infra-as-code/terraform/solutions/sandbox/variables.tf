@@ -47,7 +47,6 @@ variable "owner" {
   description = "Team or individual responsible for the resources."
 }
 
-
 variable "replication_type" {
   type    = string
   default = "LRS"

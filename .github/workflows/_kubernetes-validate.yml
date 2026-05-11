@@ -1,0 +1,90 @@
+name: _kubernetes-validate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      include-argocd-diff:
+        description: "Run argocd app diff (requires cluster credentials)"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  validate:
+    name: Validate Kubernetes manifests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kubeconform
+        run: |
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin
+
+      - name: Install helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: "3.17.0"
+
+      - name: Validate Kubernetes manifests with kubeconform
+        run: |
+          find infra-as-code/kubernetes -name "*.yaml" -o -name "*.yml" | \
+            grep -v node_modules | \
+            xargs kubeconform -strict -summary -output json
+        continue-on-error: false
+
+      - name: Lint Helm charts
+        run: |
+          if [ -d "infra-as-code/kubernetes/charts" ] && [ "$(ls -A infra-as-code/kubernetes/charts)" ]; then
+            for chart in infra-as-code/kubernetes/charts/*/; do
+              helm lint "$chart"
+            done
+          else
+            echo "No charts to lint (charts/ directory is empty or doesn't exist)"
+          fi
+        continue-on-error: true
+
+  argocd-diff:
+    name: Argo CD app diff (optional)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    if: ${{ inputs.include-argocd-diff == true }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Argo CD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin
+
+      - name: Get AKS cluster credentials
+        uses: azure/aks-set-context@e0a660a07b7f9d546bbb39ce3bc69f9d3fa57f90 # v4.0.0
+        with:
+          resource-group: rg-sbx-platform
+          cluster-name: aks-sbx-platform
+          admin: false
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Authenticate with Argo CD
+        run: |
+          # Get the argocd-server service IP (port-forward in CI is not practical)
+          # Instead, use the API token if available, or authenticate via cluster
+          argocd login kubernetes.default.svc --insecure --auth-token $(kubectl -n argocd create token argocd-server-ci 2>/dev/null || echo "") || true
+        continue-on-error: true
+
+      - name: Run argocd app diff on cluster-root
+        run: |
+          argocd app diff cluster-root --refresh || true
+        continue-on-error: true
