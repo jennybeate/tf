@@ -442,10 +442,17 @@ Do this before applying `root.yaml` — Argo CD will fail to sync immediately if
 Apply the root Application, which will deploy all platform services:
 
 ```bash
+<<<<<<< HEAD
 kubectl apply -n argocd -f infra-as-code/gitops/argocd/root.yaml --server-side --force-conflicts
 ```
 
 Argo CD syncs `infra-as-code/gitops/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
+=======
+kubectl apply -n argocd -f infra-as-code/kubernetes/argocd/root.yaml --server-side --force-conflicts
+```
+
+Argo CD syncs `infra-as-code/kubernetes/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
+>>>>>>> origin/main
 
 **Note:** `root.yaml` is excluded from `cluster-root`'s sync to prevent Argo CD from modifying itself mid-sync. If you change `root.yaml` in git, re-apply it manually with the same command above.
 
