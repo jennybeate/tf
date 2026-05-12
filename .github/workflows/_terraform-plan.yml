@@ -34,7 +34,7 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install tools
-        run: bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
+        run: sudo bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
 
       - name: task all
         run: task all
@@ -71,7 +71,7 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install tools
-        run: bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
+        run: sudo bash "$GITHUB_WORKSPACE/.devcontainer/scripts/install-tools.sh"
 
       - name: Cache Terraform plugins
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
