@@ -18,6 +18,16 @@ output "kubernetes_identity_principal_id" {
   value       = module.kubernetes.identity_principal_id
 }
 
+output "kubernetes_identity_client_id" {
+  description = "The client ID of the AKS user-assigned managed identity. Pass to configure-platform.sh --client-id."
+  value       = module.kubernetes.identity_client_id
+}
+
+output "kubernetes_oidc_issuer_url" {
+  description = "The OIDC issuer URL of the AKS cluster."
+  value       = module.kubernetes.oidc_issuer_url
+}
+
 output "dns_resource_group_name" {
   description = "The name of the DNS resource group."
   value       = azurerm_resource_group.dns.name

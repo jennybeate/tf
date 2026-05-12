@@ -30,4 +30,14 @@ module "aks" {
     max_count            = var.node_count_max
     os_disk_size_gb      = var.node_os_disk_size_gb
   }
+
+  oidc_issuer_profile = {
+    enabled = true
+  }
+
+  security_profile = {
+    workload_identity = {
+      enabled = true
+    }
+  }
 }

@@ -69,3 +69,11 @@ resource "azurerm_role_assignment" "aks_dns_contributor" {
   role_definition_name = "DNS Zone Contributor"
   principal_id         = module.kubernetes.identity_principal_id
 }
+
+resource "azurerm_federated_identity_credential" "external_dns" {
+  name                      = "external-dns"
+  user_assigned_identity_id = module.kubernetes.identity_id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = module.kubernetes.oidc_issuer_url
+  subject                   = "system:serviceaccount:external-dns:external-dns"
+}
