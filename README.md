@@ -47,7 +47,7 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │   │               └── sbx.tfvars       # Sandbox variable values
 │   └── kubernetes/                      # In-cluster GitOps config (Argo CD)
 │       ├── argocd/                      # All Argo CD Application manifests (app-of-apps)
-│       │   ├── root.yaml                # cluster-root: syncs this argocd/ directory only
+│       │   ├── root.yaml                # cluster-root definition — applied manually; excluded from its own sync
 │       │   ├── cert-manager.yaml        # Argo CD: installs cert-manager with CRDs enabled
 │       │   ├── cluster-issuer.yaml      # Argo CD: applies cert-manager ClusterIssuer
 │       │   ├── external-dns.yaml        # Argo CD: installs ExternalDNS (Azure DNS provider)
@@ -438,13 +438,15 @@ Do this before applying `root.yaml` — Argo CD will fail to sync immediately if
 
 #### Bootstrap everything
 
-Apply the root Application, which will recursively deploy all platform services:
+Apply the root Application, which will deploy all platform services:
 
 ```bash
-kubectl apply -f infra-as-code/kubernetes/argocd/root.yaml
+kubectl apply -n argocd -f infra-as-code/kubernetes/argocd/root.yaml --server-side --force-conflicts
 ```
 
-Argo CD syncs `infra-as-code/kubernetes/argocd/` and creates a child Application for each YAML file it finds there. Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
+Argo CD syncs `infra-as-code/kubernetes/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
+
+**Note:** `root.yaml` is excluded from `cluster-root`'s sync to prevent Argo CD from modifying itself mid-sync. If you change `root.yaml` in git, re-apply it manually with the same command above.
 
 #### Verify Argo CD is working
 
