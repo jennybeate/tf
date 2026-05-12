@@ -23,6 +23,11 @@ output "identity_principal_id" {
   value       = module.user_assigned_identity.principal_id
 }
 
+output "oidc_issuer_url" {
+  description = "The OIDC issuer URL of the AKS cluster. Used to create federated identity credentials."
+  value       = module.aks.oidc_issuer_profile_issuer_url
+}
+
 output "kube_config_raw" {
   description = "Raw kubeconfig for the AKS cluster. Use to configure kubectl."
   value       = module.aks.kube_config

@@ -155,6 +155,7 @@ bash scripts/configure-platform.sh \
   --tenant-id        <your-entra-id-tenant-uuid> \
   --subscription-id  <your-azure-subscription-uuid> \
   --resource-group   rg-sbx-dns \
+  --client-id        <kubernetes_identity_client_id from terraform output> \
   --keyvault-uri     https://kv-sbx-application-1.vault.azure.net \
   --email            your-team@example.com \
   --dns-zone         k8s.example.com
@@ -162,7 +163,7 @@ bash scripts/configure-platform.sh \
 
 All six flags are required. The script:
 - Validates that all flags are provided
-- Patches `platform/external-dns/values.yaml` (resourceGroup, tenantId, subscriptionId)
+- Patches `platform/external-dns/values.yaml` (resourceGroup, tenantId, subscriptionId, workload identity client ID)
 - Patches `platform/cert-manager/cluster-issuer.yaml` (email)
 - Patches `platform/secret-management/external-secret-store.yaml` (vaultUrl)
 - Prints a `git diff` summary
@@ -321,6 +322,7 @@ Platform services need some environment-specific configuration before Argo CD de
 >   --tenant-id        <your-tenant-id> \
 >   --subscription-id  <your-subscription-id> \
 >   --resource-group   rg-sbx-dns \
+>   --client-id        <kubernetes_identity_client_id from terraform output> \
 >   --keyvault-uri     https://kv-sbx-application-1.vault.azure.net \
 >   --email            your@email.com \
 >   --dns-zone         k8s.example.com

@@ -11,6 +11,7 @@ Usage: $(basename "$0") \\
   --tenant-id        <uuid> \\
   --subscription-id  <uuid> \\
   --resource-group   <rg-name> \\
+  --client-id        <uuid> \\
   --keyvault-uri     <https://kv-name.vault.azure.net> \\
   --email            <admin@example.com> \\
   --dns-zone         <k8s.example.com>
@@ -24,6 +25,7 @@ EOF
 TENANT_ID=""
 SUBSCRIPTION_ID=""
 RESOURCE_GROUP=""
+CLIENT_ID=""
 KEYVAULT_URI=""
 EMAIL=""
 DNS_ZONE=""
@@ -41,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --resource-group)
       RESOURCE_GROUP="$2"
+      shift 2
+      ;;
+    --client-id)
+      CLIENT_ID="$2"
       shift 2
       ;;
     --keyvault-uri)
@@ -67,6 +73,7 @@ MISSING=""
 [[ -z "$TENANT_ID" ]] && MISSING="$MISSING --tenant-id"
 [[ -z "$SUBSCRIPTION_ID" ]] && MISSING="$MISSING --subscription-id"
 [[ -z "$RESOURCE_GROUP" ]] && MISSING="$MISSING --resource-group"
+[[ -z "$CLIENT_ID" ]] && MISSING="$MISSING --client-id"
 [[ -z "$KEYVAULT_URI" ]] && MISSING="$MISSING --keyvault-uri"
 [[ -z "$EMAIL" ]] && MISSING="$MISSING --email"
 [[ -z "$DNS_ZONE" ]] && MISSING="$MISSING --dns-zone"
@@ -101,6 +108,7 @@ echo "Patching $EXTERNAL_DNS_VALUES..."
 sed -i "s|resourceGroup:.*|resourceGroup: \"$RESOURCE_GROUP\"|" "$EXTERNAL_DNS_VALUES"
 sed -i "s|tenantId:.*|tenantId: \"$TENANT_ID\"|" "$EXTERNAL_DNS_VALUES"
 sed -i "s|subscriptionId:.*|subscriptionId: \"$SUBSCRIPTION_ID\"|" "$EXTERNAL_DNS_VALUES"
+sed -i "s|azure.workload.identity/client-id:.*|azure.workload.identity/client-id: \"$CLIENT_ID\"|" "$EXTERNAL_DNS_VALUES"
 
 # Patch cert-manager/cluster-issuer.yaml
 echo "Patching $CERT_MANAGER_ISSUER..."
