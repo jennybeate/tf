@@ -1,4 +1,4 @@
-name: Terraform Plan — sandbox
+name: Terraform Plan — Sandbox
 
 on:
   pull_request:

@@ -148,8 +148,8 @@ Instead of manually editing three separate files (external-dns values, cert-mana
 bash scripts/configure-platform.sh \
   --tenant-id        <your-entra-id-tenant-uuid> \
   --subscription-id  <your-azure-subscription-uuid> \
-  --resource-group   rg-sbx-platform \
-  --keyvault-uri     https://kv-sbx-platform.vault.azure.net \
+  --resource-group   rg-sbx-dns \
+  --keyvault-uri     https://kv-sbx-application-1.vault.azure.net \
   --email            your-team@example.com \
   --dns-zone         k8s.example.com
 ```
@@ -168,8 +168,8 @@ Instead of running eight manual steps (get credentials, create namespace, instal
 
 ```bash
 bash scripts/bootstrap-argocd.sh \
-  [--resource-group rg-sbx-platform] \
-  [--cluster-name   aks-sbx-platform]
+  [--resource-group rg-sbx-application-1] \
+  [--cluster-name   aks-sbx-application-1]
 ```
 
 Both flags are optional and default to the sandbox environment. The script:
@@ -314,8 +314,8 @@ Platform services need some environment-specific configuration before Argo CD de
 > bash scripts/configure-platform.sh \
 >   --tenant-id        <your-tenant-id> \
 >   --subscription-id  <your-subscription-id> \
->   --resource-group   rg-sbx-platform \
->   --keyvault-uri     https://kv-sbx-platform.vault.azure.net \
+>   --resource-group   rg-sbx-dns \
+>   --keyvault-uri     https://kv-sbx-application-1.vault.azure.net \
 >   --email            your@email.com \
 >   --dns-zone         k8s.example.com
 > ```
@@ -330,7 +330,7 @@ Edit [`infra-as-code/kubernetes/platform/external-dns/values.yaml`](infra-as-cod
 provider:
   name: azure
 azure:
-  resourceGroup: "rsg-sbc-platform-terraform"     # Change to your DNS zone's resource group
+  resourceGroup: "rg-sbx-dns"                      # Resource group containing your DNS zone
   tenantId: "ecabee7b-8606-4ae2-9f69-d63203bc23d5"       # Your Entra ID tenant ID (az account show --query tenantId)
   subscriptionId: "4c85663d-30f6-45c6-9850-e84fbe731e43" # Your Azure subscription ID
   useManagedIdentityExtension: true                      # Use AKS managed identity (no secrets needed)
@@ -355,7 +355,7 @@ Edit [`infra-as-code/kubernetes/platform/secret-management/external-secret-store
 Find the `vaultUrl` and set it to your Key Vault's URI (from Phase 1). You can find it in the Azure portal under Key Vault → Overview, or run:
 
 ```bash
-az keyvault show --resource-group rg-sbx-platform --name kv-sbx-platform --query properties.vaultUri
+az keyvault show --resource-group rg-sbx-application-1 --name kv-sbx-application-1 --query properties.vaultUri
 ```
 
 #### Commit and push
@@ -370,8 +370,8 @@ Push all three changes to git. When you bootstrap Argo CD in Phase 3, it will de
 >
 > ```bash
 > bash scripts/bootstrap-argocd.sh \
->   --resource-group rg-sbx-platform \
->   --cluster-name   aks-sbx-platform
+>   --resource-group rg-sbx-application-1 \
+>   --cluster-name   aks-sbx-application-1
 > ```
 >
 > The script gets credentials, installs Argo CD, waits for readiness, prints the initial admin password, and applies `root.yaml`. You still need to manually port-forward and log in. The manual steps below remain the definitive reference.
@@ -381,7 +381,7 @@ Push all three changes to git. When you bootstrap Argo CD in Phase 3, it will de
 Download the kubeconfig file so your terminal can talk to the AKS cluster:
 
 ```bash
-az aks get-credentials --resource-group rg-sbx-platform --name aks-sbx-platform
+az aks get-credentials --resource-group rg-sbx-application-1 --name aks-sbx-application-1
 ```
 
 #### Install Argo CD

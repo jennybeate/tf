@@ -1,4 +1,4 @@
-name: Terraform Apply — sandbox
+name: Terraform Apply — Sandbox
 
 on:
   push:

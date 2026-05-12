@@ -7,4 +7,3 @@ node_count_min   = 1
 node_vm_size     = "Standard_D2s_v3"
 owner            = "platform-team"
 replication_type = "LRS"
-solution         = "platform-terraform"

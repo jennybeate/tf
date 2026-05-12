@@ -42,6 +42,17 @@ tasks:
         -backend-config="use_azuread_auth=true"
       - terraform apply -var-file=environments/{{.ENV}}.tfvars
 
+  destroy:
+    desc: Init and destroy. Override environment with ENV=can task destroy
+    cmds:
+      - terraform init
+        -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
+        -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
+        -backend-config="container_name=tfstate"
+        -backend-config="key=sandbox/terraform.tfstate"
+        -backend-config="use_azuread_auth=true"
+      - terraform destroy -var-file=environments/{{.ENV}}.tfvars
+
   all:
     desc: Run fmt, validate, and lint
     cmds:

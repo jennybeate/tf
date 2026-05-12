@@ -37,7 +37,7 @@ Set `permissions: {}` at the workflow level (deny-all by default). Grant only wh
 
 ### Action versioning
 
-Pin all `uses:` to full commit SHAs — never tags. Tags are mutable; a compromised tag can silently execute arbitrary code in your pipeline (supply chain attack). Add the version as a comment:
+Pin all `uses:` to full commit SHAs — never tags, but always search for the correct SHA. Never guess. Tags are mutable; a compromised tag can silently execute arbitrary code in your pipeline (supply chain attack). Add the version as a comment:
 
 ```yaml
 # ✅ GOOD — immutable SHA with readable version comment

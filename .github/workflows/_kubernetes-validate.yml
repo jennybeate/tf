@@ -1,4 +1,5 @@
 name: _kubernetes-validate (reusable)
+run-name: sandbox-validate-kubernetes-manifests
 
 on:
   workflow_call:
@@ -67,10 +68,10 @@ jobs:
           sudo mv argocd /usr/local/bin
 
       - name: Get AKS cluster credentials
-        uses: azure/aks-set-context@e0a660a07b7f9d546bbb39ce3bc69f9d3fa57f90 # v4.0.0
+        uses: azure/aks-set-context@60623acbdcbbdcf799ad50a1adf8703874339f8b # v5.0.0
         with:
-          resource-group: rg-sbx-platform
-          cluster-name: aks-sbx-platform
+          resource-group: rg-sbx-application-1
+          cluster-name: aks-sbx-application-1
           admin: false
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
