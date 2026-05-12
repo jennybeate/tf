@@ -74,7 +74,7 @@ echo ""
 
 # Install Argo CD
 echo "=== Installing Argo CD ==="
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 echo "✓ Applied Argo CD manifests"
 echo ""
 
@@ -118,14 +118,24 @@ echo ""
 # Print next steps
 echo "=== Next steps ==="
 cat <<EOF
-1. Port-forward to the Argo CD server:
+1. Port-forward to the Argo CD server (keep this terminal open):
    kubectl port-forward svc/argocd-server -n argocd 8080:443
 
-2. Open https://localhost:8080 in your browser
-   Login as: admin
-   Password: (see above)
+2. Log in with the argocd CLI (in a new terminal):
+   argocd login localhost:8080 --username admin --password '<initial-password>' --insecure
 
-3. Check app sync status:
+3. Register the Git repository (required — this repo is private):
+   argocd repo add https://github.com/jennybeate/tf.git \\
+     --username jennybeate \\
+     --password <github-pat>
+
+   The PAT needs repo scope (read access is sufficient).
+   Create one at: https://github.com/settings/tokens
+
+   root.yaml has already been applied. Argo CD will retry syncing
+   automatically once credentials are registered.
+
+4. Check app sync status:
    argocd app list
 
 Note: On first sync, these apps may show as Failed (expected):

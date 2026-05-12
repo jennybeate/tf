@@ -1,6 +1,7 @@
 # Claude Code Instructions
 
 This file provides instructions for Claude Code contributing to this repository.
+Whenever you make code changes, review if you need to update the instructions in the README.md file before committing your changes.
 
 
 ## Available Skills

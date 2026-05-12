@@ -46,23 +46,28 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │   │           └── environments/
 │   │               └── sbx.tfvars       # Sandbox variable values
 │   └── kubernetes/                      # In-cluster GitOps config (Argo CD)
-│       ├── argocd/                      # Argo CD bootstrap and root application
-│       │   └── root.yaml                # Root Application (app-of-apps) — syncs entire kubernetes/ directory
+│       ├── argocd/                      # All Argo CD Application manifests (app-of-apps)
+│       │   ├── root.yaml                # cluster-root: syncs this argocd/ directory only
+│       │   ├── cert-manager.yaml        # Argo CD: installs cert-manager with CRDs enabled
+│       │   ├── cluster-issuer.yaml      # Argo CD: applies cert-manager ClusterIssuer
+│       │   ├── external-dns.yaml        # Argo CD: installs ExternalDNS (Azure DNS provider)
+│       │   ├── external-secrets.yaml    # Argo CD: installs External Secrets Operator
+│       │   ├── external-secret-store.yaml  # Argo CD: applies ESO ClusterSecretStore
+│       │   ├── ingress-nginx.yaml       # Argo CD: installs ingress-nginx controller
+│       │   ├── logging.yaml             # Argo CD: installs Loki for log aggregation
+│       │   ├── monitoring.yaml          # Argo CD: installs kube-prometheus-stack (Prometheus + Grafana)
+│       │   ├── namespaces.yaml          # Argo CD: applies platform namespace definitions
+│       │   ├── rbac.yaml                # Argo CD: applies cluster RBAC resources
+│       │   └── tenants.yaml             # Argo CD: applies per-team namespace and RBAC
 │       ├── platform/                    # Cluster-wide shared services — owned by platform team
 │       │   ├── cert-manager/
-│       │   │   ├── application.yaml     # Argo CD: installs cert-manager with CRDs enabled
 │       │   │   └── cluster-issuer.yaml  # cert-manager: ClusterIssuer for Let's Encrypt
 │       │   ├── external-dns/
-│       │   │   ├── application.yaml     # Argo CD: installs ExternalDNS (Azure DNS provider)
 │       │   │   └── values.yaml          # ExternalDNS config (resourceGroup, tenantId, subscriptionId)
 │       │   ├── ingress-nginx/
-│       │   │   └── application.yaml     # Argo CD: installs ingress-nginx controller
 │       │   ├── monitoring/
-│       │   │   └── application.yaml     # Argo CD: installs kube-prometheus-stack (Prometheus + Grafana)
 │       │   ├── logging/
-│       │   │   └── application.yaml     # Argo CD: installs Loki for log aggregation
 │       │   ├── external-secrets/
-│       │   │   └── application.yaml     # Argo CD: installs External Secrets Operator
 │       │   ├── secret-management/
 │       │   │   └── external-secret-store.yaml  # ESO: ClusterSecretStore pointing at Azure Key Vault
 │       │   ├── namespaces/
@@ -390,7 +395,7 @@ Create the `argocd` namespace and deploy the stable Argo CD manifest:
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
 #### Wait for Argo CD to be ready
@@ -422,13 +427,14 @@ Open `https://localhost:8080` in your browser. Log in as `admin` with the passwo
 
 #### Register the repository (if private)
 
-If your GitHub repository is private, Argo CD needs credentials to read it:
+Argo CD needs a GitHub token to read this private repository. Create a token with `repo` scope (read-only access is sufficient) at https://github.com/settings/tokens, then run:
 
 ```bash
-argocd repo add https://github.com/<org>/<repo> --username <github-user> --password <personal-access-token>
+argocd login localhost:8080 --username admin --password <initial-admin-password> --insecure
+argocd repo add https://github.com/jennybeate/tf.git --username jennybeate --password <github-pat>
 ```
 
-For a public repo, skip this step.
+Do this before applying `root.yaml` — Argo CD will fail to sync immediately if credentials are not registered.
 
 #### Bootstrap everything
 
@@ -438,7 +444,7 @@ Apply the root Application, which will recursively deploy all platform services:
 kubectl apply -f infra-as-code/kubernetes/argocd/root.yaml
 ```
 
-Argo CD immediately starts syncing the entire `infra-as-code/kubernetes/` directory. It will create Applications for each platform service (cert-manager, ingress-nginx, external-dns, monitoring, logging, external-secrets) and deploy them to the cluster.
+Argo CD syncs `infra-as-code/kubernetes/argocd/` and creates a child Application for each YAML file it finds there. Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
 
 #### Verify Argo CD is working
 
@@ -661,10 +667,10 @@ ENV=can task plan
 
 ### Adding a platform service (Kubernetes)
 
-1. Create a folder under `infra-as-code/kubernetes/platform/<service-name>/`.
-2. Add `application.yaml` with the Argo CD Application manifest (specifying the Helm chart repo URL, chart name, version, and values).
-3. Add a `namespace.yaml` if the service needs its own namespace (and reference it in `platform/namespaces/kustomization.yaml`).
-4. Commit and push. The root Argo CD Application detects the new `application.yaml` within its sync interval (default 3 minutes) and deploys the service. To sync immediately: `argocd app sync cluster-root`.
+1. Create a folder under `infra-as-code/kubernetes/platform/<service-name>/` with its Helm values or manifests.
+2. Add an Application manifest to `infra-as-code/kubernetes/argocd/<service-name>.yaml` pointing to that folder.
+3. Add a `namespace.yaml` to `platform/namespaces/` and reference it in `platform/namespaces/kustomization.yaml` if the service needs its own namespace.
+4. Commit and push. `cluster-root` detects the new file in `argocd/` within its sync interval (default 3 minutes) and deploys the service. To sync immediately: `argocd app sync cluster-root`.
 
 ### Adding an application workload
 
