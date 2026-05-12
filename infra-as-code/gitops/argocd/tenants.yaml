@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/kubernetes/tenants
+    path: infra-as-code/gitops/tenants
     directory:
       recurse: true
   destination:

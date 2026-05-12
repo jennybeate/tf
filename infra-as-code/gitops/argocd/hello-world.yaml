@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/kubernetes/apps/hello-world/overlays/sandbox
+    path: infra-as-code/gitops/apps/hello-world/overlays/sandbox
   destination:
     server: https://kubernetes.default.svc
     namespace: team-analytics

@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/kubernetes/platform/cert-manager
+    path: infra-as-code/gitops/platform/cert-manager
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

@@ -33,15 +33,15 @@ jobs:
 
       - name: Validate Kubernetes manifests with kubeconform
         run: |
-          find infra-as-code/kubernetes -name "*.yaml" -o -name "*.yml" | \
+          find infra-as-code/gitops -name "*.yaml" -o -name "*.yml" | \
             grep -v node_modules | \
             xargs kubeconform -strict -summary -output json
         continue-on-error: false
 
       - name: Lint Helm charts
         run: |
-          if [ -d "infra-as-code/kubernetes/charts" ] && [ "$(ls -A infra-as-code/kubernetes/charts)" ]; then
-            for chart in infra-as-code/kubernetes/charts/*/; do
+          if [ -d "infra-as-code/gitops/charts" ] && [ "$(ls -A infra-as-code/gitops/charts)" ]; then
+            for chart in infra-as-code/gitops/charts/*/; do
               helm lint "$chart"
             done
           else

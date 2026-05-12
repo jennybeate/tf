@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/nimtech/terraform-testing
     targetRevision: main
-    path: infra-as-code/kubernetes/apps/<service-name>/overlays/sandbox
+    path: infra-as-code/gitops/apps/<service-name>/overlays/sandbox
   destination:
     server: https://kubernetes.default.svc
     namespace: <target-namespace>

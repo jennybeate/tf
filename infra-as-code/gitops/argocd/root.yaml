@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/kubernetes/argocd
+    path: infra-as-code/gitops/argocd
     directory:
       exclude: 'root.yaml'
   destination:

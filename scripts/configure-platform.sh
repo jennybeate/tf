@@ -80,9 +80,9 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # File paths (absolute)
-EXTERNAL_DNS_VALUES="$REPO_ROOT/infra-as-code/kubernetes/platform/external-dns/values.yaml"
-CERT_MANAGER_ISSUER="$REPO_ROOT/infra-as-code/kubernetes/platform/cert-manager/cluster-issuer.yaml"
-ESO_SECRETSTORE="$REPO_ROOT/infra-as-code/kubernetes/platform/secret-management/external-secret-store.yaml"
+EXTERNAL_DNS_VALUES="$REPO_ROOT/infra-as-code/gitops/platform/external-dns/values.yaml"
+CERT_MANAGER_ISSUER="$REPO_ROOT/infra-as-code/gitops/platform/cert-manager/cluster-issuer.yaml"
+ESO_SECRETSTORE="$REPO_ROOT/infra-as-code/gitops/platform/secret-management/external-secret-store.yaml"
 
 # Verify files exist
 for file in "$EXTERNAL_DNS_VALUES" "$CERT_MANAGER_ISSUER" "$ESO_SECRETSTORE"; do

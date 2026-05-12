@@ -103,7 +103,7 @@ echo ""
 
 # Apply root Application
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ROOT_APP="$REPO_ROOT/infra-as-code/kubernetes/argocd/root.yaml"
+ROOT_APP="$REPO_ROOT/infra-as-code/gitops/argocd/root.yaml"
 
 if [[ ! -f "$ROOT_APP" ]]; then
   echo "Error: root.yaml not found at $ROOT_APP"

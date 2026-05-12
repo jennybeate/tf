@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "infra-as-code/kubernetes/**"
+      - "infra-as-code/gitops/**"
       - ".github/workflows/kubernetes-validate-sandbox.yml"
   workflow_dispatch:
 
