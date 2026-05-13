@@ -6,9 +6,13 @@ on:
     paths:
       - infra-as-code/terraform/solutions/sandbox-gitops/**
       - infra-as-code/gitops/argocd/root.yaml
+  workflow_run:
+    workflows: ["Terraform Apply — Sandbox"]
+    types: [completed]
 
 jobs:
   plan:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       id-token: write

@@ -36,11 +36,42 @@ module "aks" {
     os_disk_size_gb     = 128
   }
 
+  aad_profile = {
+    managed                = true
+    enable_azure_rbac      = true
+    admin_group_object_ids = var.admin_group_object_ids
+  }
+
+  addon_profile_azure_policy = {
+    enabled = true
+  }
+
+  api_server_access_profile = {
+    disable_run_command = true
+  }
+
+  disable_local_accounts = true
+
+  network_profile = {
+    network_plugin      = "azure"
+    network_plugin_mode = "overlay"
+    network_dataplane   = "cilium"
+    network_policy      = "cilium"
+  }
+
+  node_resource_group_profile = {
+    restriction_level = "ReadOnly"
+  }
+
   oidc_issuer_profile = {
     enabled = true
   }
 
   security_profile = {
+    image_cleaner = {
+      enabled        = true
+      interval_hours = 168
+    }
     workload_identity = {
       enabled = true
     }

@@ -12,7 +12,7 @@ run "key_vault_is_rbac_enabled" {
   command = plan
 
   assert {
-    condition     = azurerm_key_vault.main.enable_rbac_authorization == true
+    condition     = azurerm_key_vault.main.rbac_authorization_enabled == true
     error_message = "Key Vault must use Azure RBAC authorization, not legacy access policies."
   }
 
