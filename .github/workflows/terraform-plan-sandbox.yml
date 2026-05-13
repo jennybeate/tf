@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "infra-as-code/terraform/solutions/sandbox/**"
+      - "!infra-as-code/terraform/solutions/sandbox-gitops/**"
       - ".github/workflows/terraform-plan-sandbox.yml"
   workflow_dispatch:
 
