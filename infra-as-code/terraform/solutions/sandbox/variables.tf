@@ -51,3 +51,8 @@ variable "replication_type" {
   type    = string
   default = "LRS"
 }
+
+variable "admin_group_object_ids" {
+  type        = list(string)
+  description = "Entra ID group object IDs granted admin access to the AKS cluster."
+}

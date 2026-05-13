@@ -1,8 +1,9 @@
-cost_center      = "cc-0000"
-dns_zone_name    = "k8s.example.com"
-environment      = "sbx"
-node_count_max   = 3
-node_count_min   = 1
-node_vm_size     = "Standard_D2s_v3"
-owner            = "platform-team"
-replication_type = "LRS"
+admin_group_object_ids = ["749f6dbd-7888-4d46-9d99-461189a8e1ba"]
+cost_center            = "cc-0000"
+dns_zone_name          = "k8s.example.com"
+environment            = "sbx"
+node_count_max         = 3
+node_count_min         = 1
+node_vm_size           = "Standard_D2s_v3"
+owner                  = "platform-team"
+replication_type       = "LRS"

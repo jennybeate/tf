@@ -10,7 +10,7 @@ resource "azurerm_key_vault" "main" {
   location                   = azurerm_resource_group.main.location
   sku_name                   = var.sku_name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
-  enable_rbac_authorization  = true
+  rbac_authorization_enabled  = true
   purge_protection_enabled   = true
   soft_delete_retention_days = var.soft_delete_retention_days
   tags                       = local.common_tags
