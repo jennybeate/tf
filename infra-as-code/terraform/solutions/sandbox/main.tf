@@ -105,6 +105,12 @@ module "keyvault" {
   tags                     = local.common_tags
 }
 
+resource "azurerm_role_assignment" "cicd_aks_cluster_admin" {
+  scope                = module.aks.resource_id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = var.cicd_principal_id
+}
+
 resource "azurerm_role_assignment" "kv_secrets_user" {
   scope                = module.keyvault.resource_id
   role_definition_name = "Key Vault Secrets User"

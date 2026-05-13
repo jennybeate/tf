@@ -56,3 +56,8 @@ variable "admin_group_object_ids" {
   type        = list(string)
   description = "Entra ID group object IDs granted admin access to the AKS cluster."
 }
+
+variable "cicd_principal_id" {
+  type        = string
+  description = "Object ID of the service principal used by CI/CD pipelines to deploy into the AKS cluster."
+}

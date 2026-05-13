@@ -28,3 +28,14 @@ Do NOT use the built-in Skill tool for these — they are not automatically regi
 | `naming-checker` | `skills/naming-checker/` | Check file, folder, or Azure resource naming conventions |
 | `repo-onboarding` | `nimtech-intellectual-property/skills/repo-onboarding/` | Understand the repo structure, conventions, and working agreements |
 | `tf-code-reviewer` | `skills/tf-code-reviewer/` | Review Terraform (.tf/.tfvars) code against team standards |
+
+## Gotchas
+- OIDC federation subject claims are environment-specific — see .github/docs/oidc.md
+- Azure policy assignments take up to 30 min to evaluate — don't re-apply immediately
+- AVM module upgrades may have breaking changes — check the changelog first
+- When editing github actions, use the github-actions-cicd skill to ensure correct syntax and best practices
+
+## Compaction
+When compacting, preserve: modified .tf file paths, plan output summaries,
+provider versions discussed, and any state operations performed.
+
