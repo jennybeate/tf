@@ -65,7 +65,7 @@ jobs:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/.terraform.d/plugin-cache
 
       - name: Terraform apply
-        timeout-minutes: 20
+        timeout-minutes: 45
         run: |
           terraform apply \
             -var-file=environments/${{ inputs.environment }}.tfvars \
