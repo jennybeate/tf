@@ -1,3 +1,5 @@
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "main" {
   name     = local.resource_group_name
   location = local.location
@@ -90,13 +92,17 @@ module "storage_account" {
 }
 
 module "keyvault" {
-  source              = "../../modules/key-vault/v2.0.0"
-  cost_center         = var.cost_center
-  environment         = var.environment
-  location            = azurerm_resource_group.main.location
-  owner               = var.owner
-  resource_group_name = azurerm_resource_group.main.name
-  solution            = local.solution
+  source  = "Azure/avm-res-keyvault-vault/azurerm"
+  version = "0.10.2"
+
+  name                     = local.keyvault_name
+  location                 = azurerm_resource_group.main.location
+  resource_group_name      = azurerm_resource_group.main.name
+  tenant_id                = data.azurerm_client_config.current.tenant_id
+  enable_telemetry         = false
+  network_acls             = null
+  purge_protection_enabled = local.purge_protection_enabled
+  tags                     = local.common_tags
 }
 
 resource "azurerm_role_assignment" "kv_secrets_user" {
@@ -112,14 +118,13 @@ resource "azurerm_resource_group" "dns" {
 }
 
 module "dns_zone" {
-  source = "../../modules/dns-zone/v1.0.0"
+  source  = "Azure/avm-res-network-dnszone/azurerm"
+  version = "0.2.1"
 
-  cost_center         = var.cost_center
-  dns_zone_name       = var.dns_zone_name
-  environment         = var.environment
-  owner               = var.owner
+  name                = var.dns_zone_name
   resource_group_name = azurerm_resource_group.dns.name
-  solution            = local.solution
+  enable_telemetry    = false
+  tags                = local.common_tags
 }
 
 resource "azurerm_role_assignment" "aks_dns_contributor" {
