@@ -1,0 +1,61 @@
+version: "3"
+
+vars:
+  ENV: '{{.ENV | default "sbx"}}'
+
+tasks:
+  validate:
+    desc: Initialize (no backend) and validate Terraform configuration
+    cmds:
+      - terraform init -backend=false
+      - terraform validate
+
+  fmt:
+    desc: Format Terraform files recursively
+    cmds:
+      - terraform fmt -recursive
+
+  lint:
+    desc: Run tflint recursively
+    cmds:
+      - tflint --recursive
+
+  plan:
+    desc: Init and plan. Override environment with ENV=can task plan
+    cmds:
+      - terraform init
+        -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
+        -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
+        -backend-config="container_name=tfstate"
+        -backend-config="key=sandbox-gitops/terraform.tfstate"
+        -backend-config="use_azuread_auth=true"
+      - terraform plan -var-file=environments/{{.ENV}}.tfvars
+
+  apply:
+    desc: Init and apply. Override environment with ENV=can task apply
+    cmds:
+      - terraform init
+        -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
+        -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
+        -backend-config="container_name=tfstate"
+        -backend-config="key=sandbox-gitops/terraform.tfstate"
+        -backend-config="use_azuread_auth=true"
+      - terraform apply -var-file=environments/{{.ENV}}.tfvars
+
+  destroy:
+    desc: Init and destroy. Override environment with ENV=can task destroy
+    cmds:
+      - terraform init
+        -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
+        -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
+        -backend-config="container_name=tfstate"
+        -backend-config="key=sandbox-gitops/terraform.tfstate"
+        -backend-config="use_azuread_auth=true"
+      - terraform destroy -var-file=environments/{{.ENV}}.tfvars
+
+  all:
+    desc: Run fmt, validate, and lint
+    cmds:
+      - task: fmt
+      - task: validate
+      - task: lint
