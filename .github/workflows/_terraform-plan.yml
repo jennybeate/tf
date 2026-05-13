@@ -73,7 +73,7 @@ jobs:
       ARM_USE_OIDC: "true"
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_FEDERATED_TOKEN_FILE: ${{ runner.temp }}/azure-federated-token
+      AZURE_FEDERATED_TOKEN_FILE: /tmp/azure-federated-token
 
     steps:
       - name: Checkout
@@ -91,7 +91,7 @@ jobs:
         run: |
           curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
-            | jq -r .value > "${{ runner.temp }}/azure-federated-token"
+            | jq -r .value > /tmp/azure-federated-token
 
       - name: Cache Terraform plugins
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
