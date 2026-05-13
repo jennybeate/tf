@@ -1,4 +1,5 @@
 name: Terraform Apply — Sandbox
+run-name: sandbox-apply
 
 on:
   push:

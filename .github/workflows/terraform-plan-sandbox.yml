@@ -1,4 +1,5 @@
 name: Terraform Plan — Sandbox
+run-name: sandbox-plan
 
 on:
   pull_request:
