@@ -1,3 +1,15 @@
+locals {
+  root_app = yamldecode(file("${path.module}/../../../gitops/argocd/root.yaml"))
+  root_app_hooked = merge(local.root_app, {
+    metadata = merge(local.root_app.metadata, {
+      annotations = {
+        "helm.sh/hook"               = "post-install,post-upgrade"
+        "helm.sh/hook-delete-policy" = "before-hook-creation"
+      }
+    })
+  })
+}
+
 data "azurerm_kubernetes_cluster" "main" {
   name                = var.cluster_name
   resource_group_name = var.cluster_resource_group
@@ -15,9 +27,7 @@ resource "helm_release" "argocd" {
 
   values = [
     yamlencode({
-      extraObjects = [
-        yamldecode(file("${path.module}/../../../gitops/argocd/root.yaml"))
-      ]
+      extraObjects = [local.root_app_hooked]
     })
   ]
 }

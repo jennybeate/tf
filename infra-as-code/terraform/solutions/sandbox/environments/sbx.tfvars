@@ -1,7 +1,6 @@
 cost_center      = "cc-0000"
 dns_zone_name    = "k8s.example.com"
 environment      = "sbx"
-location         = "norwayeast"
 node_count_max   = 3
 node_count_min   = 1
 node_vm_size     = "Standard_D2s_v3"
