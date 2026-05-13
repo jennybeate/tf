@@ -1,0 +1,57 @@
+name: Bootstrap Argo CD (sandbox)
+run-name: sandbox-bootstrap-argocd
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource-group:
+        description: "AKS resource group"
+        type: string
+        required: false
+        default: "rg-sbx-application-1"
+      cluster-name:
+        description: "AKS cluster name"
+        type: string
+        required: false
+        default: "aks-sbx-application-1"
+
+jobs:
+  bootstrap:
+    name: Bootstrap Argo CD
+    runs-on: ubuntu-latest
+    environment: sbx
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Get AKS cluster credentials
+        uses: azure/aks-set-context@60623acbdcbbdcf799ad50a1adf8703874339f8b # v5.0.0
+        with:
+          resource-group: ${{ inputs.resource-group }}
+          cluster-name: ${{ inputs.cluster-name }}
+          admin: true
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Argo CD CLI
+        run: |
+          ARGOCD_VERSION="2.13.0"
+          BINARY="argocd-linux-amd64"
+          curl -sSL -o argocd "https://github.com/argoproj/argo-cd/releases/download/v${ARGOCD_VERSION}/${BINARY}"
+          EXPECTED="$(curl -sSL "https://github.com/argoproj/argo-cd/releases/download/v${ARGOCD_VERSION}/cli_checksums.txt" | awk -v f="$BINARY" '$NF==f{print $1}')"
+          ACTUAL="$(sha256sum argocd | awk '{print $1}')"
+          [ "$ACTUAL" = "$EXPECTED" ] || { echo "checksum mismatch"; exit 1; }
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/argocd
+
+      - name: Bootstrap Argo CD
+        run: |
+          bash scripts/bootstrap-argocd.sh \
+            --resource-group "${{ inputs.resource-group }}" \
+            --cluster-name   "${{ inputs.cluster-name }}"
