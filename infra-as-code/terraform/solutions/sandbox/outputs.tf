@@ -35,7 +35,7 @@ output "dns_resource_group_name" {
 
 output "dns_zone_name" {
   description = "The name of the DNS zone."
-  value       = module.dns_zone.name
+  value       = var.dns_zone_name
 }
 
 output "dns_zone_name_servers" {

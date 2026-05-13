@@ -3,6 +3,18 @@
 This file provides instructions for Claude Code contributing to this repository.
 Whenever you make code changes, review if you need to update the instructions in the README.md file before committing your changes.
 
+## Terraform rules
+
+### AVM module usage
+
+AVM Resource Modules must be called directly from a solution's `main.tf`. Never wrap an AVM module inside a local module.
+
+Local modules in `modules/` must be implemented using `azurerm`, `azapi`, or other provider resources directly — not by sourcing AVM modules internally.
+
+Opinionated defaults (naming, purge protection, tags) belong in the solution's `locals.tf`, not in a wrapper module.
+
+Reference: https://azure.github.io/Azure-Verified-Modules/usage/solution-development/terraform/
+
 
 ## Available Skills
 
