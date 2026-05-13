@@ -1,13 +1,13 @@
 name: Terraform Plan — Sandbox
+run-name: sandbox-plan
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "infra-as-code/terraform/solutions/sandbox/**"
-      - "infra-as-code/terraform/modules/kubernetes/v2.0.0/**"
+      - "!infra-as-code/terraform/solutions/sandbox-gitops/**"
       - ".github/workflows/terraform-plan-sandbox.yml"
-      - ".devcontainer/scripts/**"
   workflow_dispatch:
 
 concurrency:

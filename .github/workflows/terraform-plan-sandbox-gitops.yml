@@ -1,0 +1,19 @@
+name: Terraform plan (sandbox-gitops)
+run-name: sandbox-plan-gitops
+
+on:
+  pull_request:
+    paths:
+      - infra-as-code/terraform/solutions/sandbox-gitops/**
+      - infra-as-code/gitops/argocd/root.yaml
+
+jobs:
+  plan:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_terraform-plan.yml
+    with:
+      environment: sbx
+      solution: sandbox-gitops
+    secrets: inherit

@@ -5,27 +5,27 @@ output "key_vault_uri" {
 
 output "kubernetes_cluster_id" {
   description = "The ID of the AKS cluster."
-  value       = module.kubernetes.cluster_id
+  value       = module.aks.resource_id
 }
 
 output "kubernetes_cluster_name" {
   description = "The name of the AKS cluster."
-  value       = module.kubernetes.cluster_name
+  value       = module.aks.name
 }
 
 output "kubernetes_identity_principal_id" {
   description = "The principal ID of the AKS user-assigned managed identity."
-  value       = module.kubernetes.identity_principal_id
+  value       = module.user_assigned_identity.principal_id
 }
 
 output "kubernetes_identity_client_id" {
   description = "The client ID of the AKS user-assigned managed identity. Pass to configure-platform.sh --client-id."
-  value       = module.kubernetes.identity_client_id
+  value       = module.user_assigned_identity.client_id
 }
 
 output "kubernetes_oidc_issuer_url" {
   description = "The OIDC issuer URL of the AKS cluster."
-  value       = module.kubernetes.oidc_issuer_url
+  value       = module.aks.oidc_issuer_profile_issuer_url
 }
 
 output "dns_resource_group_name" {

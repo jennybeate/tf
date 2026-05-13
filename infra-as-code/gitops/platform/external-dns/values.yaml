@@ -1,12 +1,12 @@
 provider:
   name: azure
 azure:
-  resourceGroup: "rg-sbx-platform"
+  resourceGroup: "rg-sbx-dns"
   tenantId: "ecabee7b-8606-4ae2-9f69-d63203bc23d5"
   subscriptionId: "4c85663d-30f6-45c6-9850-e84fbe731e43"
   useWorkloadIdentityExtension: true
 serviceAccount:
   annotations:
-    azure.workload.identity/client-id: "<identity-client-id>"
+    azure.workload.identity/client-id: "ca046925-5186-45cf-bfa6-8f07fcab7c95"
 podLabels:
   azure.workload.identity/use: "true"
