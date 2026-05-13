@@ -1,4 +1,5 @@
 admin_group_object_ids = ["749f6dbd-7888-4d46-9d99-461189a8e1ba"]
+cicd_principal_id      = "5276faef-3d74-4b07-ad2b-009f795d5437"
 cost_center            = "cc-0000"
 dns_zone_name          = "k8s.example.com"
 environment            = "sbx"
