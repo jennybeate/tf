@@ -85,7 +85,7 @@ jobs:
           terraform_version: "1.14.6"
 
       - name: Install kubelogin
-        run: az aks install-cli
+        run: az aks install-cli --kubelogin-version v0.1.3
 
       - name: Write OIDC token for kubelogin
         run: |

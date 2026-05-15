@@ -8,6 +8,7 @@ on:
       - "infra-as-code/terraform/solutions/sandbox/**"
       - "!infra-as-code/terraform/solutions/sandbox-gitops/**"
       - ".github/workflows/terraform-plan-sandbox.yml"
+      - ".github/workflows/_terraform-plan.yml"
   workflow_dispatch:
 
 concurrency:

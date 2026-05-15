@@ -25,3 +25,5 @@ override.tf.json
 
 # Claude Code local settings (personal overrides, not shared)
 .claude/settings.local.json
+
+**.env**

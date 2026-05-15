@@ -788,6 +788,51 @@ This setup is complete enough to bootstrap a working cluster, but these enhancem
 - **Production hardening** — Enable SOPS secret encryption, add NetworkPolicy rules, enforce Pod Security Standards, configure Alertmanager routing, and set Argo CD sync waves for controlled deployment order.
 - **Extend the platform** — Add additional platform services (service mesh, real-time logging, advanced monitoring) as your team's needs grow.
 
+### Azure Policy Initiative: Enforce-Guardrails-Kubernetes
+
+Align cluster security against the [Enforce-Guardrails-Kubernetes](https://www.azadvertizer.net/azpolicyinitiativesadvertizer/Enforce-Guardrails-Kubernetes.html) policy initiative (17 policies total).
+
+#### Non-negotiable (cluster-level infrastructure)
+
+These are mandatory for any cluster and prevent critical security gaps:
+
+- [ ] **Enable KMS encryption for etcd** — Encrypt cluster data at rest in Azure Key Vault. Add to AKS module: `key_management_service = { key_vault_key_id = "<key-id>" }` (Platform managed is in preview atm) 
+- [ ] **Restrict API server access** — Either make the cluster private (`api_server_access_profile.authorized_ip_ranges = [...]`) or use managed AAD-only access. Currently unrestricted.
+- [ ] **Pod Security Standards enforcement** — Deploy Azure Policy add-on rules to prevent: privileged containers, shared host namespaces, capability elevation, and naked pods (running outside Deployments/StatefulSets). The policy add-on is enabled but no deny rules are active yet.
+
+#### Networking-required (application and network policy level)
+
+These require both infrastructure and Kubernetes resource configuration:
+
+- [ ] **Apply NetworkPolicy rules** — Cilium is installed as the network plugin, but no policies block pod-to-pod communication by default. Create NetworkPolicy resources in `infra-as-code/gitops/platform/` to: (1) deny all ingress by default, (2) allow only necessary service-to-service communication, (3) restrict egress to the internet from workloads that don't need it.
+- [ ] **Enforce internal load balancers** — Any Service resource using `type: LoadBalancer` should have annotation `service.beta.kubernetes.io/azure-load-balancer-internal: "true"` to use internal (RFC 1918) IPs instead of public IPs. Add to `standards/templates/kubernetes-pod-best-practices.md` as a requirement.
+- [ ] **Default namespace restriction** — Create an admission controller or policy rule preventing workloads from running in the `default` namespace. All applications must declare their own namespace.
+
+#### Already compliant
+
+These policies are satisfied by current configuration:
+
+- ✓ Local authentication methods disabled (`disable_local_accounts = true`)
+- ✓ Run command disabled on API server (`disable_run_command = true`)
+- ✓ Azure CNI network plugin in use (not kubenet)
+- ✓ Azure Policy add-on deployed and enabled
+- ✓ OIDC issuer profile enabled (Workload Identity support)
+- ✓ Image cleaner enabled (weekly cleanup of pulled images)
+
+#### Nice-to-have (performance / compliance)
+
+Lower priority for sandbox testing, important for production:
+
+- [ ] **Host-level temp disk encryption** — Configure node pool with `host_encryption = true` for OS disk and temp disk encryption. Requires AVM module parameter addition.
+- [ ] **Container readiness/liveness probes** — Enforce these in pod specs via admission rules. Add to `kubernetes-pod-best-practices.md`: all Deployment containers must define at least one probe (readiness preferred).
+- [ ] **Windows container hardening** — If Windows nodes are used, ensure containers do not run as `ContainerAdministrator`. Currently sandbox uses Linux-only nodes.
+
+#### Implementation roadmap
+
+1. **Phase 1 (critical):** KMS encryption plus API server restriction plus Pod Security Standards rules
+2. **Phase 2 (important):** NetworkPolicy rules plus service annotation enforcement
+3. **Phase 3 (polish):** Readiness probe enforcement plus default namespace lock-out
+
 ---
 
 ## Reference
