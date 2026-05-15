@@ -53,6 +53,11 @@ tasks:
         -backend-config="use_azuread_auth=true"
       - terraform destroy -var-file=environments/{{.ENV}}.tfvars
 
+  purge:
+    desc: Purge soft-deleted Key Vault after destroy (sbx/can/dev only — not valid for purge-protected environments)
+    cmds:
+      - az keyvault purge --name kv-{{.ENV}}-application-1 --location norwayeast
+
   all:
     desc: Run fmt, validate, and lint
     cmds:

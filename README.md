@@ -719,7 +719,17 @@ task destroy
 
 This runs `terraform destroy` with the same backend config used by `task plan` and `task apply`. Confirm the plan when prompted.
 
-### 2 — Delete the Terraform state backend
+### 2 — Purge the soft-deleted Key Vault
+
+Azure soft-deletes Key Vaults on destroy and reserves the name for 90 days. For sandbox environments (sbx, can, dev) where purge protection is disabled, purge it immediately so the name is free for re-deployment:
+
+```bash
+task purge
+```
+
+Skip this step for environments where purge protection is enabled (liv and above) — purging is not allowed on those vaults.
+
+### 3 — Delete the Terraform state backend
 
 Once all managed resources are gone, delete the state storage account:
 
