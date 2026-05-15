@@ -28,7 +28,7 @@ tasks:
         -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
         -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
         -backend-config="container_name=tfstate"
-        -backend-config="key=sandbox-gitops/terraform.tfstate"
+        -backend-config="key=sandbox-bootstrap/terraform.tfstate"
         -backend-config="use_azuread_auth=true"
       - terraform plan -var-file=environments/{{.ENV}}.tfvars
 
@@ -39,7 +39,7 @@ tasks:
         -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
         -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
         -backend-config="container_name=tfstate"
-        -backend-config="key=sandbox-gitops/terraform.tfstate"
+        -backend-config="key=sandbox-bootstrap/terraform.tfstate"
         -backend-config="use_azuread_auth=true"
       - terraform apply -var-file=environments/{{.ENV}}.tfvars
 
@@ -50,7 +50,7 @@ tasks:
         -backend-config="resource_group_name=rg-{{.ENV}}-platform-terraform-state"
         -backend-config="storage_account_name=st{{.ENV}}platformtfstate"
         -backend-config="container_name=tfstate"
-        -backend-config="key=sandbox-gitops/terraform.tfstate"
+        -backend-config="key=sandbox-bootstrap/terraform.tfstate"
         -backend-config="use_azuread_auth=true"
       - terraform destroy -var-file=environments/{{.ENV}}.tfvars
 

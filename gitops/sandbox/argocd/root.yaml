@@ -1,17 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cluster-issuer
+  name: cluster-root
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/gitops/platform/cert-manager
+    path: gitops/sandbox/argocd
+    directory:
+      exclude: 'root.yaml'
   destination:
     server: https://kubernetes.default.svc
-    namespace: cert-manager
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true

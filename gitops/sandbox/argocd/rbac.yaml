@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: external-secret-store
+  name: rbac
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/gitops/platform/secret-management
+    path: gitops/sandbox/platform/rbac
   destination:
     server: https://kubernetes.default.svc
-    namespace: external-secrets
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true

@@ -1,5 +1,5 @@
 locals {
-  root_app = yamldecode(file("${path.module}/../../../gitops/argocd/root.yaml"))
+  root_app = yamldecode(file("${path.module}/../../../../gitops/sandbox/argocd/root.yaml"))
   root_app_hooked = merge(local.root_app, {
     metadata = merge(local.root_app.metadata, {
       annotations = {

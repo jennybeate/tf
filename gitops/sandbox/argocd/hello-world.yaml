@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-ingress
+  name: hello-world
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/gitops/platform/argocd
+    path: gitops/sandbox/apps/hello-world/overlays/sandbox
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: team-analytics
   syncPolicy:
     automated:
       prune: true
