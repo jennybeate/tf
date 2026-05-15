@@ -93,6 +93,19 @@ jobs:
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
             | jq -r .value > /tmp/azure-federated-token
 
+      - name: Verify OIDC token
+        run: |
+          if [ ! -s /tmp/azure-federated-token ]; then
+            echo "Token file is empty or missing"
+            exit 1
+          fi
+          content=$(cat /tmp/azure-federated-token)
+          if [ "$content" = "null" ]; then
+            echo "Token file contains null - jq found no .value in response"
+            exit 1
+          fi
+          echo "Token file OK (${#content} chars)"
+
       - name: Cache Terraform plugins
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
