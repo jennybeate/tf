@@ -1,5 +1,5 @@
 name: _kubernetes-validate (reusable)
-run-name: sandbox-validate-kubernetes-manifests
+run-name: validate-kubernetes-manifests
 
 on:
   workflow_call:

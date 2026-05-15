@@ -1,5 +1,5 @@
 name: _terraform-apply (reusable)
-run-name: sandbox-apply-kubernetes-infrastructure
+run-name: apply-kubernetes-infrastructure
 
 on:
   workflow_call:
