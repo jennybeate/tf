@@ -1,5 +1,5 @@
 name: _terraform-plan (reusable)
-run-name: sandbox-plan-kubernetes-infrastructure
+run-name: plan-kubernetes-infrastructure
 
 on:
   workflow_call:

@@ -426,7 +426,7 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 Open `https://localhost:8080` in your browser. Log in as `admin` with the password from above.
 
-(Your browser will warn about an untrusted certificate — that's expected for bootstrap. In production, add an Ingress resource with cert-manager once everything is working.)
+(Your browser will warn about an untrusted certificate — that's expected for bootstrap.)
 
 #### Register the repository (if private)
 
@@ -444,17 +444,10 @@ Do this before applying `root.yaml` — Argo CD will fail to sync immediately if
 Apply the root Application, which will deploy all platform services:
 
 ```bash
-<<<<<<< HEAD
 kubectl apply -n argocd -f infra-as-code/gitops/argocd/root.yaml --server-side --force-conflicts
 ```
 
 Argo CD syncs `infra-as-code/gitops/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
-=======
-kubectl apply -n argocd -f infra-as-code/kubernetes/argocd/root.yaml --server-side --force-conflicts
-```
-
-Argo CD syncs `infra-as-code/kubernetes/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
->>>>>>> origin/main
 
 **Note:** `root.yaml` is excluded from `cluster-root`'s sync to prevent Argo CD from modifying itself mid-sync. If you change `root.yaml` in git, re-apply it manually with the same command above.
 
@@ -682,7 +675,7 @@ task apply      # terraform init (inline backend config) + apply
 task all        # runs fmt → validate → lint
 ```
 
-Override the environment with `ENV=<env>` (default: `sbx`):
+Override the environment with `ENV=<env>` (default: `sbx`), or use the Load-Environment.ps1 script(we will add one for bash, later):
 
 ```bash
 ENV=can task plan

@@ -1,4 +1,5 @@
 name: Kubernetes Validate — sandbox
+run-name: sandbox-validate-kubernetes-manifests
 
 on:
   pull_request:
