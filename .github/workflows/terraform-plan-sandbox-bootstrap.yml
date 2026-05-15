@@ -1,11 +1,11 @@
-name: Terraform plan (sandbox-gitops)
-run-name: sandbox-plan-gitops
+name: Terraform plan (sandbox-bootstrap)
+run-name: sandbox-plan-bootstrap
 
 on:
   pull_request:
     paths:
-      - infra-as-code/terraform/solutions/sandbox-gitops/**
-      - infra-as-code/gitops/argocd/root.yaml
+      - infra-as-code/terraform/solutions/sandbox-bootstrap/**
+      - gitops/sandbox/argocd/root.yaml
   workflow_run:
     workflows: ["Terraform Apply — Sandbox"]
     types: [completed]
@@ -19,5 +19,5 @@ jobs:
     uses: ./.github/workflows/_terraform-plan.yml
     with:
       environment: sbx
-      solution: sandbox-gitops
+      solution: sandbox-bootstrap
     secrets: inherit

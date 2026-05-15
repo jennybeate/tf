@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: rbac
+  name: namespaces
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/gitops/platform/rbac
+    path: gitops/sandbox/platform/namespaces
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

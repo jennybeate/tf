@@ -1,13 +1,13 @@
-name: Terraform apply (sandbox-gitops)
-run-name: sandbox-apply-gitops
+name: Terraform apply (sandbox-bootstrap)
+run-name: sandbox-apply-bootstrap
 
 on:
   push:
     branches:
       - main
     paths:
-      - infra-as-code/terraform/solutions/sandbox-gitops/**
-      - infra-as-code/gitops/argocd/root.yaml
+      - infra-as-code/terraform/solutions/sandbox-bootstrap/**
+      - gitops/sandbox/argocd/root.yaml
   workflow_dispatch:
 
 jobs:
@@ -18,5 +18,5 @@ jobs:
     uses: ./.github/workflows/_terraform-apply.yml
     with:
       environment: sbx
-      solution: sandbox-gitops
+      solution: sandbox-bootstrap
     secrets: inherit
