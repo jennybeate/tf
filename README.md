@@ -22,30 +22,8 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │       ├── terraform-apply-sandbox.yml  # Sandbox merge trigger — calls _terraform-apply.yml
 │       ├── _kubernetes-validate.yml     # Reusable K8s schema validation workflow
 │       └── kubernetes-validate-sandbox.yml # K8s PR trigger — calls _kubernetes-validate.yml
-├── infra-as-code/
-│   ├── bicep/
-│   │   └── bootstrap/                   # One-time Bicep deployment (run before Terraform)
-│   │       ├── main.bicep               # Provisions Terraform remote state storage
-│   │       └── config/parameters/
-│   │           └── bootstrap.bicepparam # Subscription, location, naming params
-│   ├── terraform/
-│   │   ├── modules/                     # Reusable, versioned Terraform modules
-│   │   │   ├── key-vault/v1.0.0/        # Azure Key Vault module 
-│   │   │   ├── key-vault/v2.0.0/        # AVM Azure Key Vault 
-│   │   │   ├── kubernetes/v1.0.0/       # AKS cluster module 
-│   │   │   ├── kubernetes/v2.0.0/       # AVM AKS cluster module 
-│   │   │   └── storage-account/         # Azure Storage Account module
-│   │   └── solutions/
-│   │       └── sandbox/                 # Sandbox deployment — calls modules, holds tfvars
-│   │           ├── main.tf              # Module calls
-│   │           ├── variables.tf         # Input declarations
-│   │           ├── outputs.tf           # Output values
-│   │           ├── terraform.tf         # Required providers and backend config
-│   │           ├── providers.tf         # Provider configuration
-│   │           ├── Taskfile.yml         # Local dev commands (validate, plan, apply, etc.)
-│   │           └── environments/
-│   │               └── sbx.tfvars       # Sandbox variable values
-│   └── gitops/                          # In-cluster GitOps config (Argo CD)
+├── gitops/                              # GitOps config (Argo CD) — one folder per environment
+│   └── sandbox/                         # Sandbox environment manifests
 │       ├── argocd/                      # All Argo CD Application manifests
 │       │   ├── root.yaml                # cluster-root definition — applied manually; excluded from its own sync
 │       │   ├── cert-manager.yaml        # Argo CD: installs cert-manager with CRDs enabled
@@ -87,6 +65,35 @@ This repo is the starting point for Nimtech infrastructure consultants learning 
 │       │       └── rbac.yaml            # RoleBinding giving the team edit access to their namespace
 │       └── apps/                        # First-party application workloads (Kustomize)
 │           └── (add per-service folders here — see "Phase 4" below)
+├── infra-as-code/
+│   ├── bicep/
+│   │   └── bootstrap/                   # One-time Bicep deployment (run before Terraform)
+│   │       ├── main.bicep               # Provisions Terraform remote state storage
+│   │       └── config/parameters/
+│   │           └── bootstrap.bicepparam # Subscription, location, naming params
+│   └── terraform/
+│       ├── modules/                     # Reusable, versioned Terraform modules
+│       │   ├── key-vault/v1.0.0/        # Azure Key Vault module 
+│       │   ├── key-vault/v2.0.0/        # AVM Azure Key Vault 
+│       │   ├── kubernetes/v1.0.0/       # AKS cluster module 
+│       │   ├── kubernetes/v2.0.0/       # AVM AKS cluster module 
+│       │   └── storage-account/         # Azure Storage Account module
+│       └── solutions/
+│           ├── sandbox/                 # AKS cluster, Key Vault, DNS zone, network resources
+│           │   ├── main.tf              # Module calls
+│           │   ├── variables.tf         # Input declarations
+│           │   ├── outputs.tf           # Output values
+│           │   ├── terraform.tf         # Required providers and backend config
+│           │   ├── providers.tf         # Provider configuration
+│           │   ├── Taskfile.yml         # Local dev commands (validate, plan, apply, etc.)
+│           │   └── environments/
+│           │       └── sbx.tfvars       # Sandbox variable values
+│           └── sandbox-bootstrap/       # Installs Argo CD into the cluster via Helm
+│               ├── main.tf
+│               ├── variables.tf
+│               ├── Taskfile.yml
+│               └── environments/
+│                   └── sbx.tfvars
 ├── scripts/
 │   └── install-tools.sh                 # Installs all required tools with pinned versions
 ├── skills/                              # Claude Code AI skills — invoked through Claude Code
@@ -118,7 +125,7 @@ Running an application on Azure Kubernetes Service (AKS) requires two separate l
 | Layer | Tooling | What it does | Where it lives |
 |-------|---------|--------------|----------------|
 | Azure infrastructure | Terraform | Creates the AKS cluster itself, Key Vault, DNS zone, networking — the Azure resources that appear in the portal | `infra-as-code/terraform/` |
-| What runs inside the cluster | Argo CD (GitOps) | Installs software into the cluster (cert-manager, monitoring, DNS, etc.) and deploys your applications | `infra-as-code/gitops/` |
+| What runs inside the cluster | Argo CD (GitOps) | Installs software into the cluster (cert-manager, monitoring, DNS, etc.) and deploys your applications | `gitops/sandbox/` |
 
 **Why GitOps?** The traditional way to deploy to Kubernetes is to run `kubectl apply` commands manually. GitOps flips this: instead of pushing changes to the cluster, you commit changes to Git, and a tool called **Argo CD** running inside the cluster pulls them in automatically. The Git repo becomes the single source of truth for what should be running. If someone manually changes something in the cluster, Argo CD detects the drift and corrects it. Argo CD also provides a web UI for visualizing and managing applications.
 
@@ -186,7 +193,7 @@ Both flags are optional and default to the sandbox environment. The script:
 - Installs Argo CD from the stable manifest
 - Waits for the server and controller to be ready (300s timeout)
 - Prints the initial admin password
-- Applies `infra-as-code/gitops/argocd/root.yaml`
+- Applies `gitops/sandbox/argocd/root.yaml`
 - Prints port-forward and `argocd app list` commands
 
 You still need to manually port-forward and log in — those steps are left intentional so you see the UI and understand the platform.
@@ -250,6 +257,25 @@ This creates:
 | `TF_BACKEND_STORAGE_ACCOUNT` | `stsbxplatformtfstate` |
 
 > Backend config values are **variables**, not secrets — using `secrets.*` for these silently returns empty.
+
+#### Make the repository private (optional, sandbox)
+
+If you make this repository private, both Argo CD and GitHub Actions need read access to it.
+
+**Create a fine-grained GitHub PAT:**
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+2. Generate a new token with:
+   - Repository access: this repository only
+   - Repository permissions: Contents — Read-only
+3. Copy the token value
+
+**Add it as a GitHub Actions secret:**
+
+| Secret | Value |
+|--------|-------|
+| `ARGOCD_REPO_TOKEN` | Fine-grained PAT with Contents read-only |
+
+Argo CD repo registration happens in Phase 3 after the cluster is running — see "Register the repository (if private)" below.
 
 ---
 
@@ -332,7 +358,7 @@ Platform services need some environment-specific configuration before Argo CD de
 
 #### ExternalDNS — Azure DNS details
 
-Edit [`infra-as-code/gitops/platform/external-dns/values.yaml`](infra-as-code/gitops/platform/external-dns/values.yaml):
+Edit [`gitops/sandbox/platform/external-dns/values.yaml`](gitops/sandbox/platform/external-dns/values.yaml):
 
 ```yaml
 provider:
@@ -346,7 +372,7 @@ azure:
 
 #### cert-manager — Let's Encrypt contact
 
-Edit [`infra-as-code/gitops/platform/cert-manager/cluster-issuer.yaml`](infra-as-code/gitops/platform/cert-manager/cluster-issuer.yaml):
+Edit [`gitops/sandbox/platform/cert-manager/cluster-issuer.yaml`](gitops/sandbox/platform/cert-manager/cluster-issuer.yaml):
 
 Replace `jenny@nimtech.no` with your team's contact email. Let's Encrypt uses this to notify you before certificates expire.
 
@@ -358,7 +384,7 @@ server: https://acme-v02.api.letsencrypt.org/directory
 
 #### External Secrets — Azure Key Vault
 
-Edit [`infra-as-code/gitops/platform/secret-management/external-secret-store.yaml`](infra-as-code/gitops/platform/secret-management/external-secret-store.yaml):
+Edit [`gitops/sandbox/platform/secret-management/external-secret-store.yaml`](gitops/sandbox/platform/secret-management/external-secret-store.yaml):
 
 Find the `vaultUrl` and set it to your Key Vault's URI (from Phase 1). You can find it in the Azure portal under Key Vault → Overview, or run:
 
@@ -430,24 +456,24 @@ Open `https://localhost:8080` in your browser. Log in as `admin` with the passwo
 
 #### Register the repository (if private)
 
-Argo CD needs a GitHub token to read this private repository. Create a token with `repo` scope (read-only access is sufficient) at https://github.com/settings/tokens, then run:
+If the repository is private, register it with Argo CD before applying `root.yaml`. Use the fine-grained PAT created in the "Make the repository private" steps under "Configure GitHub":
 
 ```bash
 argocd login localhost:8080 --username admin --password <initial-admin-password> --insecure
 argocd repo add https://github.com/jennybeate/tf.git --username jennybeate --password <github-pat>
 ```
 
-Do this before applying `root.yaml` — Argo CD will fail to sync immediately if credentials are not registered.
+Argo CD will fail to sync immediately if credentials are not registered first.
 
 #### Bootstrap everything
 
 Apply the root Application, which will deploy all platform services:
 
 ```bash
-kubectl apply -n argocd -f infra-as-code/gitops/argocd/root.yaml --server-side --force-conflicts
+kubectl apply -n argocd -f gitops/sandbox/argocd/root.yaml --server-side --force-conflicts
 ```
 
-Argo CD syncs `infra-as-code/gitops/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
+Argo CD syncs `gitops/sandbox/argocd/` and creates a child Application for each YAML file it finds there (excluding `root.yaml` itself, which is managed manually). Each child Application then manages its own target path (a Helm chart, a Kustomize directory, or a plain YAML directory). All platform services deploy automatically within the first sync cycle.
 
 **Note:** `root.yaml` is excluded from `cluster-root`'s sync to prevent Argo CD from modifying itself mid-sync. If you change `root.yaml` in git, re-apply it manually with the same command above.
 
@@ -482,13 +508,13 @@ Now the platform is ready. Deploy a real containerised application.
 Copy the template and rename it to your service:
 
 ```bash
-cp -r infra-as-code/gitops/apps/service infra-as-code/gitops/apps/<your-service-name>
-cd infra-as-code/gitops/apps/<your-service-name>
+cp -r gitops/sandbox/apps/service gitops/sandbox/apps/<your-service-name>
+cd gitops/sandbox/apps/<your-service-name>
 ```
 
 #### Create the Argo CD Application manifest
 
-Create `infra-as-code/gitops/argocd/<your-service-name>.yaml`:
+Create `gitops/sandbox/argocd/<your-service-name>.yaml`:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -501,7 +527,7 @@ spec:
   source:
     repoURL: https://github.com/jennybeate/tf.git
     targetRevision: main
-    path: infra-as-code/gitops/apps/<your-service-name>/overlays/sandbox
+    path: gitops/sandbox/apps/<your-service-name>/overlays/sandbox
   destination:
     server: https://kubernetes.default.svc
     namespace: <target-namespace>
@@ -600,7 +626,7 @@ spec:
 Commit and push your changes:
 
 ```bash
-git add infra-as-code/gitops/apps/<your-service-name> infra-as-code/gitops/argocd/<your-service-name>.yaml
+git add gitops/sandbox/apps/<your-service-name> gitops/sandbox/argocd/<your-service-name>.yaml
 git commit -m "Add <your-service-name> application"
 git push
 ```
@@ -683,18 +709,18 @@ ENV=can task plan
 
 ### Adding a platform service (Kubernetes)
 
-1. Create a folder under `infra-as-code/gitops/platform/<service-name>/` with its Helm values or manifests.
-2. Add an Application manifest to `infra-as-code/gitops/argocd/<service-name>.yaml` pointing to that folder.
-3. Add a `namespace.yaml` to `infra-as-code/gitops/platform/namespaces/` and reference it in `platform/namespaces/kustomization.yaml` if the service needs its own namespace.
+1. Create a folder under `gitops/sandbox/platform/<service-name>/` with its Helm values or manifests.
+2. Add an Application manifest to `gitops/sandbox/argocd/<service-name>.yaml` pointing to that folder.
+3. Add a `namespace.yaml` to `gitops/sandbox/platform/namespaces/` and reference it in `platform/namespaces/kustomization.yaml` if the service needs its own namespace.
 4. Commit and push. `cluster-root` detects the new file in `argocd/` within its sync interval (default 3 minutes) and deploys the service. To sync immediately: `argocd app sync cluster-root`.
 
 ### Adding an application workload
 
-1. Copy `infra-as-code/gitops/apps/service` to `apps/<service-name>`.
+1. Copy `gitops/sandbox/apps/service` to `gitops/sandbox/apps/<service-name>`.
 2. Fill in the base manifests (deployment, service, etc.) with your container image and config.
 3. Create `overlays/sandbox/kustomization.yaml` with patches for the image tag and replica count.
 4. Add an Ingress resource if the service needs a public URL (reference the `ClusterIssuer` by name in the annotation).
-5. Create `infra-as-code/gitops/argocd/<service-name>.yaml` — the Argo CD Application manifest pointing to `apps/<service-name>/overlays/sandbox`. Use `apps/service/application.yaml` as a reference.
+5. Create `gitops/sandbox/argocd/<service-name>.yaml` — the Argo CD Application manifest pointing to `gitops/sandbox/apps/<service-name>/overlays/sandbox`. Use `gitops/sandbox/apps/service/application.yaml` as a reference.
 6. Commit and push. `cluster-root` detects the new file in `argocd/` within its sync interval (default 3 minutes) and deploys the service. To sync immediately: `argocd app sync cluster-root`.
 
 ---
@@ -767,7 +793,7 @@ use github-actions-cicd to set up plan and apply workflows for <your deployment 
 
 #### `kubernetes-validate-sandbox.yml` (PR trigger)
 
-Triggers on pull requests to `main` that change files under `infra-as-code/gitops/**`.
+Triggers on pull requests to `main` that change files under `gitops/sandbox/**`.
 
 Runs schema validation with `kubeconform` (catches typos in field names, wrong types, missing required fields) and `helm lint` on any charts in `charts/`.
 
@@ -797,7 +823,7 @@ These are mandatory for any cluster and prevent critical security gaps:
 
 These require both infrastructure and Kubernetes resource configuration:
 
-- [ ] **Apply NetworkPolicy rules** — Cilium is installed as the network plugin, but no policies block pod-to-pod communication by default. Create NetworkPolicy resources in `infra-as-code/gitops/platform/` to: (1) deny all ingress by default, (2) allow only necessary service-to-service communication, (3) restrict egress to the internet from workloads that don't need it.
+- [ ] **Apply NetworkPolicy rules** — Cilium is installed as the network plugin, but no policies block pod-to-pod communication by default. Create NetworkPolicy resources in `gitops/sandbox/platform/` to: (1) deny all ingress by default, (2) allow only necessary service-to-service communication, (3) restrict egress to the internet from workloads that don't need it.
 - [ ] **Enforce internal load balancers** — Any Service resource using `type: LoadBalancer` should have annotation `service.beta.kubernetes.io/azure-load-balancer-internal: "true"` to use internal (RFC 1918) IPs instead of public IPs. Add to `standards/templates/kubernetes-pod-best-practices.md` as a requirement.
 - [ ] **Default namespace restriction** — Create an admission controller or policy rule preventing workloads from running in the `default` namespace. All applications must declare their own namespace.
 
@@ -838,7 +864,7 @@ Lower priority for sandbox testing, important for production:
 
 **Helm** is the package manager for Kubernetes — think of it like `apt`, `brew`, or `npm` but for cluster software. A **chart** is a Helm package: a bundle of YAML templates that installs a piece of software (e.g. an ingress controller, a monitoring stack). Charts are published to **chart repositories**, which are like npm registries for Kubernetes software.
 
-**Argo CD** is what connects this Git repo to the cluster. It reads the YAML files in `infra-as-code/gitops/argocd/` and applies them to the cluster, installing Helm charts and deploying applications automatically.
+**Argo CD** is what connects this Git repo to the cluster. It reads the YAML files in `gitops/sandbox/argocd/` and applies them to the cluster, installing Helm charts and deploying applications automatically.
 
 #### File types explained
 
