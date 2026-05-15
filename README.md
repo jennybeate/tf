@@ -796,7 +796,7 @@ Align cluster security against the [Enforce-Guardrails-Kubernetes](https://www.a
 
 These are mandatory for any cluster and prevent critical security gaps:
 
-- [ ] **Enable KMS encryption for etcd** — Encrypt cluster data at rest in Azure Key Vault. Add to AKS module: `key_management_service = { key_vault_key_id = "<key-id>" }`
+- [ ] **Enable KMS encryption for etcd** — Encrypt cluster data at rest in Azure Key Vault. Add to AKS module: `key_management_service = { key_vault_key_id = "<key-id>" }` (Platform managed is in preview atm) 
 - [ ] **Restrict API server access** — Either make the cluster private (`api_server_access_profile.authorized_ip_ranges = [...]`) or use managed AAD-only access. Currently unrestricted.
 - [ ] **Pod Security Standards enforcement** — Deploy Azure Policy add-on rules to prevent: privileged containers, shared host namespaces, capability elevation, and naked pods (running outside Deployments/StatefulSets). The policy add-on is enabled but no deny rules are active yet.
 
