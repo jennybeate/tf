@@ -8,6 +8,7 @@ on:
     paths:
       - infra-as-code/terraform/solutions/sandbox-gitops/**
       - infra-as-code/gitops/argocd/root.yaml
+  workflow_dispatch:
 
 jobs:
   apply:
