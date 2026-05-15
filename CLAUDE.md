@@ -1,7 +1,7 @@
 # Claude Code Instructions
 
 This file provides instructions for Claude Code contributing to this repository.
-Whenever you make code changes, review if you need to update the instructions in the README.md file before committing your changes.
+Whenever you make code changes, review if you need to update the relevant README.md files before committing. The root README.md covers repo overview; environment-specific details live in `docs/sandbox/README.md` and `docs/prod/README.md`.
 
 ## Terraform rules
 
@@ -31,7 +31,6 @@ Do NOT use the built-in Skill tool for these — they are not automatically regi
 
 ## Gotchas
 - OIDC federation subject claims are environment-specific — see .github/docs/oidc.md
-- Azure policy assignments take up to 30 min to evaluate — don't re-apply immediately
 - AVM module upgrades may have breaking changes — check the changelog first
 - When editing github actions, use the github-actions-cicd skill to ensure correct syntax and best practices
 
